@@ -594,64 +594,57 @@
 
     </div>
 
-    <!-- Generate Web App Manifest dynamically -->
-    <script>
-        const manifestData = {
-            "name": "AutoKira - Jurnal & Servis",
-            "short_name": "AutoKira",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#f8fafc",
-            "theme_color": "#0f172a",
-            "icons": [{
-                "src": "https://lh3.googleusercontent.com/d/1_01si5AB3HnnGTqYCzJibcuclz5emcyq",
-                "sizes": "512x512",
-                "type": "image/png"
-            }]
-        };
-        const stringManifest = JSON.stringify(manifestData);
-        const blob = new Blob([stringManifest], {type: 'application/manifest+json'});
-        const manifestURL = URL.createObjectURL(blob);
-        document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
-    </script>
-
-    <!-- Firebase SDK Setup -->
+    <!-- Firebase SDK Setup (Telah Dikemaskini untuk Sync Semua Peranti) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "mock", projectId: "mock", appId: "mock"
+        // =====================================================================
+        // ⚠️ LANGKAH 1: MASUKKAN MAKLUMAT PROJECT FIREBASE ANDA DI SINI
+        // (Anda boleh dapatkan maklumat ini di Firebase Console > Project Settings)
+        // =====================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDoqzlqifrHbbBYviaYGhQh-QUoFqRw6Iw",
+            authDomain: "docuvault-v2.firebaseapp.com",
+            projectId: "docuvault-v2",
+            storageBucket: "docuvault-v2.firebasestorage.app",
+            messagingSenderId: "734492192690",
+            appId: "1:734492192690:web:71bfe7f1ae0fd47c6b3eab"
         };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        let app, auth, db, currentUser = null;
+        let app, db;
+        
+        // Data stores
         let allExpensesData = [];
         let allServicesData = [];
         let unsubscribeExp = null;
         let unsubscribeSvc = null;
 
-        let activeTab = 'expenses';
+        // Global States
+        let activeTab = 'expenses'; 
         let currentFilterMonthExp = 'all';
         let currentFilterMonthSvc = 'all';
         let previewingDocId = null;
-        let previewingType = null;
+        let previewingType = null; 
         
+        // Form States - Expenses
         let expCategory = 'Minyak';
         let expTrip = 'Pergi Kerja';
         let expBase64Image = null;
         let expEditingId = null;
         
+        // Form States - Services
         let svcBase64Image = null;
         let svcEditingId = null;
 
+        // Utility: Toast
         window.showToast = (message, type = 'info') => {
             const toast = document.getElementById('toast-notification');
             const msgEl = document.getElementById('toast-message');
             const iconEl = document.getElementById('toast-icon');
             
             msgEl.innerText = message;
+            
             if(type === 'success') {
                 toast.className = 'toast fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold w-max max-w-[90%] border border-emerald-500';
                 iconEl.className = 'fas fa-check-circle text-lg';
@@ -662,47 +655,35 @@
                 toast.className = 'toast fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold w-max max-w-[90%] border border-slate-700';
                 iconEl.className = 'fas fa-info-circle text-lg';
             }
+
             toast.classList.add('show');
             setTimeout(() => { toast.classList.remove('show'); }, 3500);
         }
 
+        // Init
         function init() {
             try {
+                // Initialize Firebase tanpa pengesahan peranti, terus akses DB
                 app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
                 db = getFirestore(app);
-                setupAuth();
+                
                 document.getElementById('input-date-svc').valueAsDate = new Date();
+                
+                updateConnectionStatus("connected");
+                
+                // Terus memuat turun & sync data real-time
+                fetchData();
             } catch (error) {
                 console.error("Init Error:", error);
                 updateConnectionStatus("error");
+                window.showToast("Gagal menyambung ke Firebase. Sila semak API Key.", "error");
             }
         }
 
-        async function setupAuth() {
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    updateConnectionStatus("connected");
-                    fetchData(user.uid);
-                } else {
-                    currentUser = null;
-                    updateConnectionStatus("connecting");
-                }
-            });
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                updateConnectionStatus("error");
-            }
-        }
-
-        function fetchData(userId) {
-            const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
+        // Fetch Data Global Sync
+        function fetchData() {
+            // Laluan data diubah ke folder 'autokira_expenses' (Sama di semua peranti)
+            const expensesRef = collection(db, 'autokira_expenses');
             if (unsubscribeExp) unsubscribeExp(); 
             unsubscribeExp = onSnapshot(expensesRef, (snapshot) => {
                 allExpensesData = [];
@@ -710,9 +691,15 @@
                 allExpensesData.sort((a, b) => b.timestamp - a.timestamp);
                 updateFilterDropdown('expenses');
                 renderExpensesDashboard();
+            }, (error) => {
+                console.error("Firestore Error:", error);
+                if(error.code === 'permission-denied') {
+                    window.showToast("Ralat Permissions! Sila kemaskini Firestore Rules anda.", "error");
+                }
             });
 
-            const servicesRef = collection(db, 'artifacts', appId, 'users', userId, 'services');
+            // Laluan data diubah ke folder 'autokira_services' (Sama di semua peranti)
+            const servicesRef = collection(db, 'autokira_services');
             if (unsubscribeSvc) unsubscribeSvc(); 
             unsubscribeSvc = onSnapshot(servicesRef, (snapshot) => {
                 allServicesData = [];
@@ -723,8 +710,10 @@
             });
         }
 
+        // --- TAB NAVIGATION LOGIC ---
         window.switchTab = (tab) => {
             activeTab = tab;
+            
             document.getElementById('nav-expenses').classList.remove('active');
             document.getElementById('nav-services').classList.remove('active');
             document.getElementById(`nav-${tab}`).classList.add('active');
@@ -748,6 +737,7 @@
             }
         }
 
+        // --- FILTER LOGIC ---
         function updateFilterDropdown(type) {
             const selectId = type === 'expenses' ? 'month-filter-expenses' : 'month-filter-services';
             const select = document.getElementById(selectId);
@@ -801,6 +791,7 @@
             }
         }
 
+        // --- RENDER EXPENSES ---
         function renderExpensesDashboard() {
             let filteredData = allExpensesData;
             if (currentFilterMonthExp !== 'all') {
@@ -892,6 +883,7 @@
             updateBar('bar-parking', 'pct-parking', totalParking);
         }
 
+        // --- RENDER SERVICES ---
         function renderServicesDashboard() {
             let filteredData = allServicesData;
             if (currentFilterMonthSvc !== 'all') {
@@ -956,6 +948,7 @@
             document.getElementById('record-count-services').innerText = `${filteredData.length} Transaksi`;
         }
 
+        // --- MODAL CONTROLLERS ---
         window.openModal = (modalId) => {
             document.getElementById(modalId).classList.add('active');
             document.getElementById('modal-overlay').classList.remove('hidden');
@@ -1005,12 +998,13 @@
             closeDeleteModal();
         }
 
+        // --- PREVIEW LOGIC ---
         window.openPreview = (id, type) => {
             previewingDocId = id;
             previewingType = type;
 
             const container = document.getElementById('pv-details-container');
-            container.innerHTML = '';
+            container.innerHTML = ''; 
 
             const iconContainer = document.getElementById('pv-icon-container');
             const icon = document.getElementById('pv-icon');
@@ -1118,6 +1112,7 @@
             }
         }
 
+        // --- EDIT LOGIC ---
         window.openEditModal = () => {
             closeModal('preview-modal');
             
@@ -1173,6 +1168,7 @@
             }, 300);
         }
 
+        // --- DELETE LOGIC ---
         window.confirmDelete = () => {
             closeModal('preview-modal');
             setTimeout(() => {
@@ -1188,10 +1184,10 @@
         }
 
         window.executeDelete = async () => {
-            if (!currentUser || !previewingDocId) return;
+            if (!previewingDocId) return;
             try {
-                const collectionName = previewingType === 'exp' ? 'expenses' : 'services';
-                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, collectionName, previewingDocId));
+                const collectionName = previewingType === 'exp' ? 'autokira_expenses' : 'autokira_services';
+                await deleteDoc(doc(db, collectionName, previewingDocId));
                 window.showToast("Rekod berjaya dipadam.", "success");
                 closeDeleteModal();
             } catch (error) {
@@ -1200,6 +1196,7 @@
             }
         }
 
+        // --- FORM HELPERS ---
         window.selectCategory = (cat) => {
             expCategory = cat;
             ['Minyak', 'Tol', 'Parking'].forEach(c => {
@@ -1279,9 +1276,8 @@
             }
         }
 
+        // --- SAVE EXPENSE RECORD ---
         window.saveExpenseRecord = async () => {
-            if (!currentUser) return window.showToast("Sila tunggu sambungan awan.", "error");
-
             const amount = parseFloat(document.getElementById('input-amount-exp').value);
             if (isNaN(amount) || amount <= 0) {
                 document.getElementById('input-amount-exp').focus();
@@ -1296,7 +1292,7 @@
 
             try {
                 if (expEditingId) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', expEditingId), {
+                    await updateDoc(doc(db, 'autokira_expenses', expEditingId), {
                         category: expCategory,
                         tripType: expTrip,
                         amount: amount,
@@ -1304,7 +1300,7 @@
                     });
                     window.showToast("Rekod dikemaskini.", "success");
                 } else {
-                    await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses'), {
+                    await addDoc(collection(db, 'autokira_expenses'), {
                         category: expCategory,
                         tripType: expTrip,
                         amount: amount,
@@ -1322,9 +1318,8 @@
             }
         }
 
+        // --- SAVE SERVICE RECORD ---
         window.saveServiceRecord = async () => {
-            if (!currentUser) return window.showToast("Sila tunggu sambungan awan.", "error");
-
             const amount = parseFloat(document.getElementById('input-amount-svc').value);
             if (isNaN(amount) || amount <= 0) {
                 document.getElementById('input-amount-svc').focus();
@@ -1347,7 +1342,7 @@
 
             try {
                 if (svcEditingId) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'services', svcEditingId), {
+                    await updateDoc(doc(db, 'autokira_services', svcEditingId), {
                         serviceDate: dateInput,
                         vehicle: vehicle,
                         location: location,
@@ -1357,13 +1352,13 @@
                     });
                     window.showToast("Rekod Servis dikemaskini.", "success");
                 } else {
-                    await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'services'), {
+                    await addDoc(collection(db, 'autokira_services'), {
                         serviceDate: dateInput,
                         vehicle: vehicle,
                         location: location,
                         mileage: mileage,
                         amount: amount,
-                        timestamp: Date.now(), 
+                        timestamp: Date.now(),
                         receiptImage: svcBase64Image
                     });
                     window.showToast("Rekod Servis berjaya disimpan.", "success");
