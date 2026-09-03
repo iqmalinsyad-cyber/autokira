@@ -132,11 +132,14 @@
     </div>
 
     <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="absolute inset-0 z-[60] bg-slate-50 flex flex-col justify-center items-center px-6 transition-opacity duration-500 hidden">
-        <div class="w-full max-w-sm bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] text-center relative overflow-hidden">
-            <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
-            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
-            
+    <div id="login-screen" class="fixed inset-0 w-screen h-screen z-[100] bg-slate-50 flex flex-col justify-center items-center px-6 transition-opacity duration-500 hidden overflow-hidden">
+        <!-- Full Screen Background Decor -->
+        <div class="absolute inset-0 w-full h-full z-0 overflow-hidden pointer-events-none">
+            <div class="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] max-w-[600px] max-h-[600px] bg-blue-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60"></div>
+            <div class="absolute -bottom-[20%] -left-[10%] w-[70vw] h-[70vw] max-w-[600px] max-h-[600px] bg-emerald-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60"></div>
+        </div>
+        
+        <div class="w-full max-w-sm bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] text-center relative z-10 border border-white/50">
             <div class="relative z-10">
                 <div class="mb-8">
                     <h1 class="text-[36px] font-extrabold tracking-tighter" style="color: #123055; line-height: 1;">
@@ -157,6 +160,7 @@
                     <span id="google-signin-text">Log Masuk dengan Google</span>
                     <div id="google-signin-loader" class="loader hidden ml-2 border-slate-300 border-t-slate-700 w-4 h-4 border-2"></div>
                 </button>
+                <p id="login-error-msg" class="text-[10px] text-red-500 font-semibold mt-4 hidden"></p>
             </div>
         </div>
     </div>
@@ -897,24 +901,36 @@
 
         window.signInWithGoogle = () => {
             const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            
             const btnText = document.getElementById('google-signin-text');
             const loader = document.getElementById('google-signin-loader');
+            const errorMsg = document.getElementById('login-error-msg');
             
+            errorMsg.classList.add('hidden');
             btnText.innerText = "Sila Tunggu...";
             loader.classList.remove('hidden');
             
-            // Try popup first, fallback to redirect if it fails (common in PWAs/In-app browsers)
+            // Try popup first, fallback to redirect if it fails
             signInWithPopup(auth, provider).catch((error) => {
-                console.log("Popup failed, trying redirect...", error.code);
+                console.log("Popup failed:", error.code, error.message);
+                
                 if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
                     signInWithRedirect(auth, provider).catch(err => {
                         console.error("Redirect failed:", err);
-                        window.showToast("Gagal log masuk.", "error");
+                        errorMsg.innerText = "Ralat: Gagal log masuk. Sila cuba lagi.";
+                        errorMsg.classList.remove('hidden');
                         resetLoginButton();
                     });
                 } else {
-                    console.error("Login Error:", error);
-                    window.showToast("Ralat log masuk Google.", "error");
+                    let userFriendlyMsg = "Ralat log masuk: " + error.message;
+                    if (error.code === 'auth/unauthorized-domain') {
+                        userFriendlyMsg = "Domain ini belum dibenarkan. Sila tambah domain ini di ruang 'Authorized domains' dalam Firebase Console (Authentication -> Settings).";
+                    } else if (error.code === 'auth/operation-not-supported-in-this-environment') {
+                        userFriendlyMsg = "Fungsi disekat oleh pelayar. Sila buka pautan aplikasi ini di tab baru pelayar web anda (bukan dalam frame).";
+                    }
+                    errorMsg.innerText = userFriendlyMsg;
+                    errorMsg.classList.remove('hidden');
                     resetLoginButton();
                 }
             });
