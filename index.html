@@ -39,15 +39,23 @@
         }
         
         .app-container {
-            max-width: 480px;
+            max-width: 100%;
+            width: 100%;
             margin: 0 auto;
             background-color: #f8fafc;
-            height: 100%;
+            height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             position: relative;
             box-shadow: 0 0 40px rgba(0,0,0,0.15);
             overflow: hidden;
+        }
+        
+        @media (min-width: 480px) {
+            .app-container {
+                max-width: 480px;
+            }
         }
 
         ::-webkit-scrollbar { width: 0px; background: transparent; }
@@ -118,16 +126,46 @@
 <body class="antialiased text-slate-800">
 
     <!-- Toast Notification -->
-    <div id="toast-notification" class="toast fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold w-max max-w-[90%] border border-slate-700">
+    <div id="toast-notification" class="toast fixed top-6 left-1/2 transform -translate-x-1/2 z-[70] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold w-max max-w-[90%] border border-slate-700">
         <i id="toast-icon" class="fas fa-info-circle text-lg"></i>
         <span id="toast-message">Mesej di sini</span>
     </div>
 
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="absolute inset-0 z-[60] bg-slate-50 flex flex-col justify-center items-center px-6 transition-opacity duration-500 hidden">
+        <div class="w-full max-w-sm bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] text-center relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
+            
+            <div class="relative z-10">
+                <div class="mb-8">
+                    <h1 class="text-[36px] font-extrabold tracking-tighter" style="color: #123055; line-height: 1;">
+                        Auto<span class="relative">k<span style="color: #c79e47;">i</span>ra</span>
+                    </h1>
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2">Jurnal & Servis Kenderaan</p>
+                </div>
+                
+                <p class="text-sm text-slate-600 mb-8 font-medium">Sila log masuk untuk mengakses dan merekod perjalanan anda dengan selamat.</p>
+                
+                <button onclick="window.signInWithGoogle()" id="google-signin-btn" class="w-full bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl shadow-sm hover:bg-slate-50 hover:shadow transition-all flex items-center justify-center gap-3 relative overflow-hidden">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <span id="google-signin-text">Log Masuk dengan Google</span>
+                    <div id="google-signin-loader" class="loader hidden ml-2 border-slate-300 border-t-slate-700 w-4 h-4 border-2"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MAIN APP CONTAINER -->
-    <div class="app-container">
+    <div id="main-app" class="app-container hidden opacity-0 transition-opacity duration-500">
         
         <!-- HEADER (Locked at top) -->
-        <header class="flex-none pt-10 pb-2 px-6 z-10 bg-slate-50/90 backdrop-blur-md">
+        <header class="flex-none pt-10 pb-2 px-6 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200/50">
             <div class="flex justify-between items-center">
                 <div class="flex flex-col items-start -ml-1">
                     <div class="pt-1 pb-1 ml-1">
@@ -138,8 +176,13 @@
                     <p id="header-subtitle" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5 ml-1">Perjalanan Harian</p>
                 </div>
                 
-                <div id="connection-status" class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 text-amber-600 shadow-sm transition-colors duration-300">
-                    <i class="fas fa-circle-notch fa-spin"></i>
+                <div class="flex items-center gap-3">
+                    <div id="connection-status" class="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-600 shadow-sm transition-colors duration-300">
+                        <i class="fas fa-circle-notch fa-spin text-xs"></i>
+                    </div>
+                    <button onclick="window.signOutApp()" class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-colors shadow-sm">
+                        <i class="fas fa-sign-out-alt text-xs"></i>
+                    </button>
                 </div>
             </div>
         </header>
@@ -419,12 +462,15 @@
 
                 <div class="mb-6">
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tujuan Perjalanan</label>
-                    <div class="bg-slate-100 p-1.5 rounded-2xl flex gap-1">
+                    <div class="bg-slate-100 p-1.5 rounded-2xl flex flex-col sm:flex-row gap-1">
                         <button type="button" onclick="selectTrip('Pergi Kerja')" id="btn-trip-Pergi Kerja" class="trip-btn active flex-1 py-3 rounded-xl font-bold text-sm transition-all shadow-sm">
                             Pergi Kerja
                         </button>
                         <button type="button" onclick="selectTrip('Balik Kerja')" id="btn-trip-Balik Kerja" class="trip-btn flex-1 py-3 rounded-xl font-bold text-sm transition-all text-slate-500 hover:text-slate-800">
                             Balik Kerja
+                        </button>
+                        <button type="button" onclick="selectTrip('Lain-lain')" id="btn-trip-Lain-lain" class="trip-btn flex-1 py-3 rounded-xl font-bold text-sm transition-all text-slate-500 hover:text-slate-800">
+                            Lain-lain
                         </button>
                     </div>
                 </div>
@@ -723,7 +769,8 @@
     <!-- Firebase SDK Setup -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =====================================================================
         // KONFIGURASI FIREBASE ANDA
@@ -737,7 +784,8 @@
             appId: "1:734492192690:web:71bfe7f1ae0fd47c6b3eab"
         };
 
-        let app, db;
+        let app, db, auth;
+        let currentUser = null;
         
         // Data stores
         let allExpensesData = [];
@@ -798,52 +846,161 @@
         function init() {
             try {
                 app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
                 db = getFirestore(app);
                 
                 document.getElementById('input-date-svc').valueAsDate = new Date();
                 document.getElementById('input-date-mlg').valueAsDate = new Date();
                 
-                updateConnectionStatus("connected");
-                fetchData();
+                setupAuth();
             } catch (error) {
                 console.error("Init Error:", error);
-                updateConnectionStatus("error");
+                window.showToast("Gagal memulakan aplikasi.", "error");
             }
         }
 
-        function fetchData() {
-            // Expenses
-            const expensesRef = collection(db, 'autokira_expenses');
-            if (unsubscribeExp) unsubscribeExp(); 
-            unsubscribeExp = onSnapshot(expensesRef, (snapshot) => {
-                allExpensesData = [];
-                snapshot.forEach((doc) => { allExpensesData.push({ id: doc.id, ...doc.data() }); });
-                allExpensesData.sort((a, b) => b.timestamp - a.timestamp);
-                updateFilterDropdown('expenses');
-                renderExpensesDashboard();
+        function setupAuth() {
+            // Check for redirect result first (mobile PWA often needs this)
+            getRedirectResult(auth).then((result) => {
+                if (result) {
+                    const user = result.user;
+                    console.log("Logged in via redirect:", user.email);
+                }
+            }).catch((error) => {
+                console.error("Redirect Login Error:", error);
+                window.showToast("Ralat log masuk Google.", "error");
+                resetLoginButton();
             });
 
-            // Services
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // User is signed in
+                    currentUser = user;
+                    updateConnectionStatus("connected");
+                    showMainApp();
+                    fetchData(user.uid);
+                    window.showToast(`Selamat datang, ${user.displayName || user.email.split('@')[0]}`, "success");
+                } else {
+                    // User is signed out
+                    currentUser = null;
+                    allExpensesData = [];
+                    allServicesData = [];
+                    allMileageData = [];
+                    if(unsubscribeExp) unsubscribeExp();
+                    if(unsubscribeSvc) unsubscribeSvc();
+                    if(unsubscribeMlg) unsubscribeMlg();
+                    showLoginScreen();
+                    resetLoginButton();
+                }
+            });
+        }
+
+        window.signInWithGoogle = () => {
+            const provider = new GoogleAuthProvider();
+            const btnText = document.getElementById('google-signin-text');
+            const loader = document.getElementById('google-signin-loader');
+            
+            btnText.innerText = "Sila Tunggu...";
+            loader.classList.remove('hidden');
+            
+            // Try popup first, fallback to redirect if it fails (common in PWAs/In-app browsers)
+            signInWithPopup(auth, provider).catch((error) => {
+                console.log("Popup failed, trying redirect...", error.code);
+                if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+                    signInWithRedirect(auth, provider).catch(err => {
+                        console.error("Redirect failed:", err);
+                        window.showToast("Gagal log masuk.", "error");
+                        resetLoginButton();
+                    });
+                } else {
+                    console.error("Login Error:", error);
+                    window.showToast("Ralat log masuk Google.", "error");
+                    resetLoginButton();
+                }
+            });
+        }
+
+        window.signOutApp = () => {
+            signOut(auth).then(() => {
+                window.showToast("Berjaya log keluar.", "success");
+            }).catch((error) => {
+                console.error("Sign Out Error", error);
+                window.showToast("Gagal log keluar.", "error");
+            });
+        }
+
+        function showMainApp() {
+            const loginScreen = document.getElementById('login-screen');
+            const mainApp = document.getElementById('main-app');
+            
+            loginScreen.classList.add('opacity-0');
+            setTimeout(() => {
+                loginScreen.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                // trigger reflow
+                void mainApp.offsetWidth;
+                mainApp.classList.remove('opacity-0');
+            }, 500);
+        }
+
+        function showLoginScreen() {
+            const loginScreen = document.getElementById('login-screen');
+            const mainApp = document.getElementById('main-app');
+            
+            mainApp.classList.add('opacity-0');
+            setTimeout(() => {
+                mainApp.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                // trigger reflow
+                void loginScreen.offsetWidth;
+                loginScreen.classList.remove('opacity-0');
+            }, 500);
+        }
+
+        function resetLoginButton() {
+            document.getElementById('google-signin-text').innerText = "Log Masuk dengan Google";
+            document.getElementById('google-signin-loader').classList.add('hidden');
+        }
+
+        function fetchData(userId) {
+            if (!userId) return;
+
+            // Fetch Data specifically for this user
+            const expensesRef = collection(db, 'autokira_expenses');
+            const expensesQuery = query(expensesRef, where("userId", "==", userId));
+            
+            if (unsubscribeExp) unsubscribeExp(); 
+            unsubscribeExp = onSnapshot(expensesQuery, (snapshot) => {
+                allExpensesData = [];
+                snapshot.forEach((doc) => { allExpensesData.push({ id: doc.id, ...doc.data() }); });
+                allExpensesData.sort((a, b) => b.timestamp - a.timestamp); // Sort locally since indexing might be needed for compound queries in firestore
+                updateFilterDropdown('expenses');
+                renderExpensesDashboard();
+            }, (error) => { console.error("Expenses Fetch Error:", error); });
+
             const servicesRef = collection(db, 'autokira_services');
+            const servicesQuery = query(servicesRef, where("userId", "==", userId));
+            
             if (unsubscribeSvc) unsubscribeSvc(); 
-            unsubscribeSvc = onSnapshot(servicesRef, (snapshot) => {
+            unsubscribeSvc = onSnapshot(servicesQuery, (snapshot) => {
                 allServicesData = [];
                 snapshot.forEach((doc) => { allServicesData.push({ id: doc.id, ...doc.data() }); });
                 allServicesData.sort((a, b) => b.serviceDate - a.serviceDate);
                 updateFilterDropdown('services');
                 renderServicesDashboard();
-            });
+            }, (error) => { console.error("Services Fetch Error:", error); });
 
-            // Mileage
             const mileageRef = collection(db, 'autokira_mileage');
+            const mileageQuery = query(mileageRef, where("userId", "==", userId));
+            
             if (unsubscribeMlg) unsubscribeMlg();
-            unsubscribeMlg = onSnapshot(mileageRef, (snapshot) => {
+            unsubscribeMlg = onSnapshot(mileageQuery, (snapshot) => {
                 allMileageData = [];
                 snapshot.forEach((doc) => { allMileageData.push({ id: doc.id, ...doc.data() }); });
                 allMileageData.sort((a, b) => b.date - a.date);
                 updateFilterDropdown('mileage');
                 renderMileageDashboard();
-            });
+            }, (error) => { console.error("Mileage Fetch Error:", error); });
         }
 
         // --- TAB NAVIGATION LOGIC ---
@@ -1475,14 +1632,14 @@
                 document.getElementById(`btn-cat-${c}`).className = `category-btn py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm transition-all text-slate-500 hover:border-slate-300`;
             });
             const activeBtn = document.getElementById(`btn-cat-${cat}`);
-            if (cat === 'Minyak') activeBtn.className = "category-btn py-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-emerald-600 font-bold text-sm transition-all shadow-sm";
+            if (cat === 'Minyak') activeBtn.className = "category-btn active-minyak py-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-emerald-600 font-bold text-sm transition-all shadow-sm";
             if (cat === 'Tol') activeBtn.className = "category-btn py-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold text-sm transition-all shadow-sm";
             if (cat === 'Parking') activeBtn.className = "category-btn py-4 rounded-2xl border-2 border-amber-500 bg-amber-50 text-amber-600 font-bold text-sm transition-all shadow-sm";
         }
 
         window.selectTrip = (trip) => {
             expTrip = trip;
-            ['Pergi Kerja', 'Balik Kerja'].forEach(t => {
+            ['Pergi Kerja', 'Balik Kerja', 'Lain-lain'].forEach(t => {
                 document.getElementById(`btn-trip-${t}`).className = `trip-btn flex-1 py-3 rounded-xl font-bold text-sm transition-all text-slate-500 hover:text-slate-800`;
             });
             document.getElementById(`btn-trip-${trip}`).className = "trip-btn active flex-1 py-3 rounded-xl font-bold text-sm transition-all shadow-sm bg-white text-slate-900";
@@ -1568,6 +1725,8 @@
 
         // --- SAVE EXPENSE RECORD ---
         window.saveExpenseRecord = async () => {
+            if (!currentUser) return window.showToast("Sila log masuk dahulu.", "error");
+
             const amount = parseFloat(document.getElementById('input-amount-exp').value);
             if (isNaN(amount) || amount <= 0) {
                 document.getElementById('input-amount-exp').focus();
@@ -1591,6 +1750,7 @@
                     window.showToast("Rekod dikemaskini.", "success");
                 } else {
                     await addDoc(collection(db, 'autokira_expenses'), {
+                        userId: currentUser.uid, // Tie record to user
                         category: expCategory,
                         tripType: expTrip,
                         amount: amount,
@@ -1610,6 +1770,8 @@
 
         // --- SAVE SERVICE RECORD ---
         window.saveServiceRecord = async () => {
+            if (!currentUser) return window.showToast("Sila log masuk dahulu.", "error");
+
             const amount = parseFloat(document.getElementById('input-amount-svc').value);
             if (isNaN(amount) || amount <= 0) {
                 document.getElementById('input-amount-svc').focus();
@@ -1643,6 +1805,7 @@
                     window.showToast("Rekod Servis dikemaskini.", "success");
                 } else {
                     await addDoc(collection(db, 'autokira_services'), {
+                        userId: currentUser.uid, // Tie record to user
                         serviceDate: dateInput,
                         vehicle: vehicle,
                         location: location,
@@ -1664,6 +1827,8 @@
 
         // --- SAVE MILEAGE RECORD ---
         window.saveMileageRecord = async () => {
+            if (!currentUser) return window.showToast("Sila log masuk dahulu.", "error");
+            
             const km = parseFloat(document.getElementById('input-km-mlg').value);
             if (isNaN(km) || km <= 0) {
                 document.getElementById('input-km-mlg').focus();
@@ -1696,6 +1861,7 @@
                     window.showToast("Rekod Tuntutan dikemaskini.", "success");
                 } else {
                     await addDoc(collection(db, 'autokira_mileage'), {
+                        userId: currentUser.uid, // Tie record to user
                         date: dateInput,
                         location: location,
                         reason: reason,
