@@ -1,0 +1,7 @@
+{
+  "name": "AutoKira - Sistem Jurnal, Servis & Profil Kenderaan",
+  "description": "Aplikasi pengurusan perbelanjaan harian kenderaan, rekod servis, tuntutan mileage dan profil kenderaan pelbagai kereta dengan log masuk Google.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
