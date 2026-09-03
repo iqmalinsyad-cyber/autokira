@@ -36,6 +36,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #e2e8f0; 
             -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
         }
         
         .app-container {
@@ -103,9 +104,9 @@
         }
 
         /* Active Form Buttons */
-        .category-btn.active-minyak { background-color: #10b981; color: white; border-color: #10b981; }
-        .category-btn.active-tol { background-color: #3b82f6; color: white; border-color: #3b82f6; }
-        .category-btn.active-parking { background-color: #f59e0b; color: white; border-color: #f59e0b; }
+        .category-btn.active-minyak { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; }
+        .category-btn.active-tol { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
+        .category-btn.active-parking { background-color: #f59e0b !important; color: white !important; border-color: #f59e0b !important; }
         .trip-btn.active { background-color: #0f172a; color: white; border-color: #0f172a; }
 
         .loader {
@@ -145,10 +146,10 @@
                     <h1 class="text-[36px] font-extrabold tracking-tighter" style="color: #123055; line-height: 1;">
                         Auto<span class="relative">k<span style="color: #c79e47;">i</span>ra</span>
                     </h1>
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2">Jurnal & Servis Kenderaan</p>
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2">Kos Perjalanan & Servis Kenderaan</p>
                 </div>
                 
-                <p class="text-sm text-slate-600 mb-8 font-medium">Sila log masuk untuk mengakses dan merekod perjalanan anda dengan selamat.</p>
+                <p class="text-sm text-slate-600 mb-8 font-medium">Sila log masuk untuk mengakses dan merekod kos perjalanan anda.</p>
                 
                 <button onclick="window.signInWithGoogle()" id="google-signin-btn" class="w-full bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl shadow-sm hover:bg-slate-50 hover:shadow transition-all flex items-center justify-center gap-3 relative overflow-hidden">
                     <svg class="w-5 h-5" viewBox="0 0 24 24">
@@ -413,7 +414,7 @@
         </div>
 
         <!-- Bottom Application Navigation Bar -->
-        <nav class="flex-none w-full bg-white border-t border-slate-200 px-3 pb-safe pt-2 h-[80px] z-30 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] flex justify-between items-center rounded-t-3xl relative">
+        <nav class="flex-none w-full bg-white border-t border-slate-200 px-3 pt-2 z-30 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] flex justify-between items-center rounded-t-3xl relative" style="padding-bottom: env(safe-area-inset-bottom); min-height: 80px;">
             <button onclick="window.switchTab('expenses')" id="nav-expenses" class="nav-item active flex-1 flex flex-col items-center justify-center gap-1">
                 <div class="nav-icon-bg w-12 h-8 rounded-full flex items-center justify-center transition-colors">
                     <i class="fas fa-wallet text-lg"></i>
@@ -1648,9 +1649,9 @@
                 document.getElementById(`btn-cat-${c}`).className = `category-btn py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm transition-all text-slate-500 hover:border-slate-300`;
             });
             const activeBtn = document.getElementById(`btn-cat-${cat}`);
-            if (cat === 'Minyak') activeBtn.className = "category-btn active-minyak py-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-emerald-600 font-bold text-sm transition-all shadow-sm";
-            if (cat === 'Tol') activeBtn.className = "category-btn py-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold text-sm transition-all shadow-sm";
-            if (cat === 'Parking') activeBtn.className = "category-btn py-4 rounded-2xl border-2 border-amber-500 bg-amber-50 text-amber-600 font-bold text-sm transition-all shadow-sm";
+            if (cat === 'Minyak') activeBtn.className = "category-btn active-minyak py-4 rounded-2xl border-2 border-emerald-500 font-bold text-sm transition-all shadow-md shadow-emerald-500/20";
+            if (cat === 'Tol') activeBtn.className = "category-btn active-tol py-4 rounded-2xl border-2 border-blue-500 font-bold text-sm transition-all shadow-md shadow-blue-500/20";
+            if (cat === 'Parking') activeBtn.className = "category-btn active-parking py-4 rounded-2xl border-2 border-amber-500 font-bold text-sm transition-all shadow-md shadow-amber-500/20";
         }
 
         window.selectTrip = (trip) => {
