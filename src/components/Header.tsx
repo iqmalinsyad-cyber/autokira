@@ -38,13 +38,23 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="relative z-30 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 px-3.5 sm:px-5 bg-[#0d1017]/95 backdrop-blur-md border-b border-white/5 transition-all">
       <div className="flex items-center justify-between gap-2.5 sm:gap-3">
-        {/* Left Pulse / Health button */}
+        {/* Left Pulse / Logo button */}
         <button 
           onClick={() => setEngineState(prev => prev === 'ON' ? 'OFF' : 'ON')}
-          title="Status Kesihatan Enjin"
-          className="w-10 h-10 rounded-full bg-[#181d26] border border-white/5 flex items-center justify-center text-slate-300 hover:text-orange-400 hover:border-orange-500/30 transition-all active:scale-95 shadow-sm shrink-0"
+          title="Status Kesihatan Enjin & Logo AutoKira"
+          className="w-10 h-10 rounded-full bg-[#181d26] border border-white/10 flex items-center justify-center text-slate-300 hover:border-orange-500/50 transition-all active:scale-95 shadow-sm shrink-0 overflow-hidden p-1 relative group"
         >
-          <Activity className="w-5 h-5 text-slate-300" />
+          <img 
+            src="https://lh3.googleusercontent.com/d/1_01si5AB3HnnGTqYCzJibcuclz5emcyq" 
+            alt="AutoKira Logo" 
+            className="w-full h-full object-contain rounded-full"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.style.display = 'none';
+            }}
+          />
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#181d26]"></span>
         </button>
 
         {/* Center Vehicle Switcher Pill */}

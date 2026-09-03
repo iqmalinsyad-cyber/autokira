@@ -22,6 +22,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  const mainLogoUrl = "https://lh3.googleusercontent.com/d/1_01si5AB3HnnGTqYCzJibcuclz5emcyq";
+
   const handleSignIn = async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -30,7 +32,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
     } catch (err: any) {
       console.warn("Sign in error:", err);
-      setErrorMsg("Log masuk Google gagal atau disekat oleh sekatan pelayar iframe. Sila cuba lagi.");
+      setErrorMsg("Log masuk Google dibatalkan atau disekat oleh sekatan pelayar iframe. Sila cuba lagi.");
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>Disahkan dengan Google Account</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Semua data kenderaan, servis, dan tuntutan mileage disegerakkan terus ke awan Firebase.
+                Semua data kenderaan, servis, dan tuntutan mileage disegerakkan terus ke awan Firebase Firestore.
               </p>
             </div>
 
@@ -91,7 +93,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 onClick={handleSignOut}
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-2xl bg-[#1e2432] hover:bg-red-500/20 hover:text-red-400 text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition-all"
+                className="w-full py-3 px-4 rounded-2xl bg-[#1e2432] hover:bg-red-500/20 hover:text-red-400 text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Log Keluar Akaun</span>
@@ -100,13 +102,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         ) : (
           <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-400 mx-auto flex items-center justify-center mb-3">
-              <Car className="w-8 h-8" />
+            <div className="w-20 h-20 rounded-2xl bg-[#181d28] border border-white/10 mx-auto flex items-center justify-center mb-3 overflow-hidden p-2 shadow-inner">
+              <img 
+                src={mainLogoUrl} 
+                alt="AutoKira Logo" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
 
             <h3 className="text-lg font-extrabold text-white">Log Masuk AutoKira</h3>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Sambungkan akaun Google anda untuk menyegerak profil kenderaan & rekod perbelanjaan.
+              Sambungkan akaun Google anda untuk menyegerak profil kenderaan & rekod kos secara automatik.
             </p>
 
             {errorMsg && (
@@ -120,7 +127,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 onClick={handleSignIn}
                 disabled={loading}
-                className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs flex items-center justify-center gap-3 transition-all shadow-lg active:scale-98"
+                className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs flex items-center justify-center gap-3 transition-all shadow-lg active:scale-98 cursor-pointer"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

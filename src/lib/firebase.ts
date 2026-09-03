@@ -16,6 +16,8 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut as fbSignOut, 
   onAuthStateChanged,
   User
@@ -37,14 +39,51 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const loginWithGoogle = async (): Promise<User | null> => {
+export const loginWithGoogle = async (): Promise<{ user: any; isSimulated?: boolean }> => {
   try {
+    // Attempt standard Google Popup login
     const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    if (result && result.user) {
+      return { user: result.user };
+    }
   } catch (error: any) {
-    console.warn("Google popup sign-in encountered an issue or was blocked by iframe/cross-origin:", error);
+    console.warn("Google popup sign-in encountered an issue (likely browser popup restriction in iframe):", error?.code, error?.message);
+    
+    // Check if error is popup-blocked or unauthorized domain in dev iframe
+    if (
+      error?.code === 'auth/popup-blocked' || 
+      error?.code === 'auth/popup-closed-by-user' ||
+      error?.code === 'auth/cancelled-popup-request' ||
+      error?.code === 'auth/unauthorized-domain' ||
+      error?.code === 'auth/operation-not-supported-in-this-environment'
+    ) {
+      // If we are in an iframe or redirect is viable, try redirect or fallback
+      try {
+        if (window.self === window.top) {
+          // Not in an iframe, try redirect
+          await signInWithRedirect(auth, googleProvider);
+          return { user: null };
+        }
+      } catch (redirectErr) {
+        console.warn("Redirect sign-in error:", redirectErr);
+      }
+    }
+    
     throw error;
   }
+  return { user: null };
+};
+
+export const checkRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result && result.user) {
+      return result.user;
+    }
+  } catch (err) {
+    console.warn("Error checking redirect result:", err);
+  }
+  return null;
 };
 
 export const logoutGoogle = async () => {
@@ -54,3 +93,4 @@ export const logoutGoogle = async () => {
     console.error("Sign-out error:", error);
   }
 };
+
