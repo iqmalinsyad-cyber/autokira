@@ -1,18 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  setDoc,
-  enableIndexedDbPersistence
-} from 'firebase/firestore';
-import { 
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
@@ -32,9 +19,8 @@ export const firebaseConfig = {
   appId: "1:734492192690:web:71bfe7f1ae0fd47c6b3eab"
 };
 
-// Initialize Firebase safely
+// Initialize Firebase safely for Auth
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -47,7 +33,7 @@ export const loginWithGoogle = async (): Promise<{ user: any; isSimulated?: bool
       return { user: result.user };
     }
   } catch (error: any) {
-    console.warn("Google popup sign-in encountered an issue (likely browser popup restriction in iframe):", error?.code, error?.message);
+    console.warn("Google popup sign-in encountered an issue:", error?.code, error?.message);
     
     // Check if error is popup-blocked or unauthorized domain in dev iframe
     if (
@@ -57,7 +43,6 @@ export const loginWithGoogle = async (): Promise<{ user: any; isSimulated?: bool
       error?.code === 'auth/unauthorized-domain' ||
       error?.code === 'auth/operation-not-supported-in-this-environment'
     ) {
-      // If we are in an iframe or redirect is viable, try redirect or fallback
       try {
         if (window.self === window.top) {
           // Not in an iframe, try redirect
@@ -93,4 +78,5 @@ export const logoutGoogle = async () => {
     console.error("Sign-out error:", error);
   }
 };
+
 

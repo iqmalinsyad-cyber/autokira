@@ -80,17 +80,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* Storage Mode Badge */}
             <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-bold">
-              {isIqmal ? (
-                <>
-                  <Database className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Firebase Cloud Database</span>
-                </>
-              ) : (
-                <>
-                  <Smartphone className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="text-blue-400">Storan Tempatan (Peranti)</span>
-                </>
-              )}
+              <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400">Storan Tempatan (Local Storage)</span>
             </div>
 
             <div className="mt-4 p-3 rounded-2xl bg-[#1b202c] border border-white/5 text-left text-xs space-y-1.5">
@@ -99,10 +90,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>Status Akaun Google Aktif</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                {isIqmal 
-                  ? "Semua data kenderaan, servis, dan kos disegerak secara automatik ke pangkalan data awan Firebase."
-                  : "Data anda disimpan secara peribadi di dalam Storan Tempatan (Local Storage) peranti ini."
-                }
+                Semua rekod kos petrol, jadual servis, tuntutan mileage, dan profil kenderaan disimpan secara terasing dan selamat dalam Storan Tempatan (Local Storage) peranti ini.
               </p>
             </div>
 

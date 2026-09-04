@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { DashboardView } from './components/DashboardView';
@@ -17,78 +17,20 @@ import { Toast, ToastMessage } from './components/Toast';
 import { Vehicle, ExpenseRecord, ServiceRecord, MileageRecord, UserProfile, MainTabType } from './types';
 import { INITIAL_VEHICLES } from './data/defaultVehicles';
 import { 
-  db, 
-  auth, 
   loginWithGoogle, 
-  logoutGoogle,
-  checkRedirectResult
+  logoutGoogle 
 } from './lib/firebase';
-import { 
-  collection, 
-  doc, 
-  setDoc,
-  deleteDoc, 
-  onSnapshot 
-} from 'firebase/firestore';
-import { onAuthStateChanged, User } from 'firebase/auth';
 
-// Helper to check if user is the designated cloud sync administrator
-export const isCloudSyncUser = (email?: string | null): boolean => {
-  return (email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
-};
-
-// Global deleted IDs tracker to prevent deleted items from ever reappearing
-const getDeletedIdsSet = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem('autokira_deleted_ids');
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch {
-    return new Set();
+// Helper to derive safe storage prefix for any user
+const getStoragePrefix = (userProfile?: UserProfile | null): string => {
+  if (!userProfile) return 'autokira_guest';
+  if ((userProfile.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com') {
+    return 'autokira_iqmal';
   }
+  return `autokira_user_${userProfile.uid || userProfile.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
 };
 
-const markIdAsDeleted = async (id: string, colName?: string, isCloudUser?: boolean) => {
-  try {
-    const set = getDeletedIdsSet();
-    set.add(id);
-    localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
-
-    if (isCloudUser) {
-      try {
-        await setDoc(doc(db, 'autokira_deleted_ids', id), {
-          id,
-          collection: colName || 'general',
-          deletedAt: Date.now()
-        });
-      } catch (e) {
-        console.warn('Firestore deleted_ids write error:', e);
-      }
-    }
-  } catch (e) {
-    console.warn('Error saving deleted ID:', e);
-  }
-};
-
-const unmarkIdAsDeleted = async (id: string, isCloudUser?: boolean) => {
-  try {
-    const set = getDeletedIdsSet();
-    if (set.has(id)) {
-      set.delete(id);
-      localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
-    }
-    if (isCloudUser) {
-      try {
-        await deleteDoc(doc(db, 'autokira_deleted_ids', id));
-      } catch (e) {
-        console.warn('Firestore deleted_ids cleanup error:', e);
-      }
-    }
-  } catch (e) {
-    console.warn('Error unmarking deleted ID:', e);
-  }
-};
-
-// Default clean vehicle for other new users
+// Default clean vehicle for new users
 const createDefaultUserVehicle = (userDisplayName: string): Vehicle => ({
   id: 'veh-usr-' + Date.now(),
   plateNumber: 'WXX 1234',
@@ -121,7 +63,7 @@ export default function App() {
   // Navigation
   const [activeTab, setActiveTab] = useState<MainTabType>('dashboard');
 
-  // User State - strictly respect logout state and require authentic sign in
+  // User State - strictly respects explicit logout state
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const isLoggedOut = localStorage.getItem('autokira_logged_out');
@@ -138,19 +80,18 @@ export default function App() {
     }
   });
 
-  // Calculate storage key prefix for current user
-  const isCloud = isCloudSyncUser(user?.email);
-  const userKeyPrefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
-
-  // State
+  // State initialization strictly from Local Storage
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
     try {
-      const isUserCloud = isCloudSyncUser(user?.email);
-      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
-      const saved = localStorage.getItem(`${prefix}_vehicles`) || localStorage.getItem('autokira_vehicles');
-      const deleted = getDeletedIdsSet();
-      const list: Vehicle[] = saved ? JSON.parse(saved) : (isUserCloud ? INITIAL_VEHICLES : [createDefaultUserVehicle(user?.displayName || 'Pengguna')]);
-      return list.filter(v => !deleted.has(v.id));
+      const prefix = getStoragePrefix(user);
+      const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
+      const saved = localStorage.getItem(`${prefix}_vehicles`) || 
+                    (isIqmal ? localStorage.getItem('autokira_iqmal_vehicles') || localStorage.getItem('autokira_vehicles') : null);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return isIqmal ? INITIAL_VEHICLES : [createDefaultUserVehicle(user?.displayName || 'Pengguna')];
     } catch {
       return INITIAL_VEHICLES;
     }
@@ -158,9 +99,10 @@ export default function App() {
 
   const [activeVehicleId, setActiveVehicleId] = useState<string>(() => {
     try {
-      const isUserCloud = isCloudSyncUser(user?.email);
-      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
-      const saved = localStorage.getItem(`${prefix}_active_vehicle_id`) || localStorage.getItem('autokira_active_vehicle_id');
+      const prefix = getStoragePrefix(user);
+      const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
+      const saved = localStorage.getItem(`${prefix}_active_vehicle_id`) || 
+                    (isIqmal ? localStorage.getItem('autokira_iqmal_active_vehicle_id') || localStorage.getItem('autokira_active_vehicle_id') : null);
       return saved || (INITIAL_VEHICLES[0]?.id ?? '');
     } catch {
       return INITIAL_VEHICLES[0]?.id ?? '';
@@ -169,13 +111,11 @@ export default function App() {
 
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
     try {
-      const isUserCloud = isCloudSyncUser(user?.email);
-      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
-      const saved = localStorage.getItem(`${prefix}_expenses`) || (isUserCloud ? localStorage.getItem('autokira_expenses') : null);
-      if (!saved) return [];
-      const deleted = getDeletedIdsSet();
-      const list: ExpenseRecord[] = JSON.parse(saved);
-      return list.filter(item => !deleted.has(item.id));
+      const prefix = getStoragePrefix(user);
+      const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
+      const saved = localStorage.getItem(`${prefix}_expenses`) || 
+                    (isIqmal ? localStorage.getItem('autokira_iqmal_expenses') || localStorage.getItem('autokira_expenses') : null);
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -183,13 +123,11 @@ export default function App() {
 
   const [services, setServices] = useState<ServiceRecord[]>(() => {
     try {
-      const isUserCloud = isCloudSyncUser(user?.email);
-      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
-      const saved = localStorage.getItem(`${prefix}_services`) || (isUserCloud ? localStorage.getItem('autokira_services') : null);
-      if (!saved) return [];
-      const deleted = getDeletedIdsSet();
-      const list: ServiceRecord[] = JSON.parse(saved);
-      return list.filter(item => !deleted.has(item.id));
+      const prefix = getStoragePrefix(user);
+      const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
+      const saved = localStorage.getItem(`${prefix}_services`) || 
+                    (isIqmal ? localStorage.getItem('autokira_iqmal_services') || localStorage.getItem('autokira_services') : null);
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -197,13 +135,11 @@ export default function App() {
 
   const [mileage, setMileage] = useState<MileageRecord[]>(() => {
     try {
-      const isUserCloud = isCloudSyncUser(user?.email);
-      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
-      const saved = localStorage.getItem(`${prefix}_mileage`) || (isUserCloud ? localStorage.getItem('autokira_mileage') : null);
-      if (!saved) return [];
-      const deleted = getDeletedIdsSet();
-      const list: MileageRecord[] = JSON.parse(saved);
-      return list.filter(item => !deleted.has(item.id));
+      const prefix = getStoragePrefix(user);
+      const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
+      const saved = localStorage.getItem(`${prefix}_mileage`) || 
+                    (isIqmal ? localStorage.getItem('autokira_iqmal_mileage') || localStorage.getItem('autokira_mileage') : null);
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -244,7 +180,7 @@ export default function App() {
   // Active Vehicle computed
   const activeVehicle = vehicles.find((v) => v.id === activeVehicleId) || vehicles[0] || null;
 
-  // Sync to User's Local Storage whenever state changes
+  // Persist State to Local Storage whenever it updates
   useEffect(() => {
     if (user) {
       localStorage.setItem('autokira_user', JSON.stringify(user));
@@ -255,53 +191,76 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    const prefix = getStoragePrefix(user);
     localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(vehicles));
-    if (isCloud) localStorage.setItem('autokira_vehicles', JSON.stringify(vehicles));
-  }, [vehicles, user, isCloud]);
+    if (prefix === 'autokira_iqmal') {
+      localStorage.setItem('autokira_vehicles', JSON.stringify(vehicles));
+    }
+  }, [vehicles, user]);
 
   useEffect(() => {
     if (!user || !activeVehicleId) return;
-    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    const prefix = getStoragePrefix(user);
     localStorage.setItem(`${prefix}_active_vehicle_id`, activeVehicleId);
-    if (isCloud) localStorage.setItem('autokira_active_vehicle_id', activeVehicleId);
-  }, [activeVehicleId, user, isCloud]);
+    if (prefix === 'autokira_iqmal') {
+      localStorage.setItem('autokira_active_vehicle_id', activeVehicleId);
+    }
+  }, [activeVehicleId, user]);
 
   useEffect(() => {
     if (!user) return;
-    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    const prefix = getStoragePrefix(user);
     localStorage.setItem(`${prefix}_expenses`, JSON.stringify(expenses));
-    if (isCloud) localStorage.setItem('autokira_expenses', JSON.stringify(expenses));
-  }, [expenses, user, isCloud]);
+    if (prefix === 'autokira_iqmal') {
+      localStorage.setItem('autokira_expenses', JSON.stringify(expenses));
+    }
+  }, [expenses, user]);
 
   useEffect(() => {
     if (!user) return;
-    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    const prefix = getStoragePrefix(user);
     localStorage.setItem(`${prefix}_services`, JSON.stringify(services));
-    if (isCloud) localStorage.setItem('autokira_services', JSON.stringify(services));
-  }, [services, user, isCloud]);
+    if (prefix === 'autokira_iqmal') {
+      localStorage.setItem('autokira_services', JSON.stringify(services));
+    }
+  }, [services, user]);
 
   useEffect(() => {
     if (!user) return;
-    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    const prefix = getStoragePrefix(user);
     localStorage.setItem(`${prefix}_mileage`, JSON.stringify(mileage));
-    if (isCloud) localStorage.setItem('autokira_mileage', JSON.stringify(mileage));
-  }, [mileage, user, isCloud]);
+    if (prefix === 'autokira_iqmal') {
+      localStorage.setItem('autokira_mileage', JSON.stringify(mileage));
+    }
+  }, [mileage, user]);
 
-  // Load User-Specific Data when user account switches
+  // Load User-Specific Data when user logs in or switches
   const loadUserDataForAccount = (targetUser: UserProfile) => {
-    const isTargetCloud = isCloudSyncUser(targetUser.email);
-    const prefix = isTargetCloud ? 'autokira_iqmal' : `autokira_user_${targetUser.uid}`;
-    const deleted = getDeletedIdsSet();
+    const prefix = getStoragePrefix(targetUser);
+    const isIqmal = (targetUser.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
 
     // Vehicles
-    const rawVeh = localStorage.getItem(`${prefix}_vehicles`) || (isTargetCloud ? localStorage.getItem('autokira_vehicles') : null);
-    let loadedVehicles: Vehicle[] = rawVeh ? JSON.parse(rawVeh) : (isTargetCloud ? INITIAL_VEHICLES : [createDefaultUserVehicle(targetUser.displayName || 'Pengguna')]);
-    loadedVehicles = loadedVehicles.filter(v => !deleted.has(v.id));
+    const rawVeh = localStorage.getItem(`${prefix}_vehicles`) || 
+                    (isIqmal ? localStorage.getItem('autokira_iqmal_vehicles') || localStorage.getItem('autokira_vehicles') : null);
+    let loadedVehicles: Vehicle[] = [];
+    if (rawVeh) {
+      try {
+        const parsed = JSON.parse(rawVeh);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedVehicles = parsed;
+        }
+      } catch {
+        loadedVehicles = [];
+      }
+    }
+    if (loadedVehicles.length === 0) {
+      loadedVehicles = isIqmal ? INITIAL_VEHICLES : [createDefaultUserVehicle(targetUser.displayName || 'Pengguna')];
+    }
     setVehicles(loadedVehicles);
 
     // Active Vehicle ID
-    const rawActiveId = localStorage.getItem(`${prefix}_active_vehicle_id`) || (isTargetCloud ? localStorage.getItem('autokira_active_vehicle_id') : null);
+    const rawActiveId = localStorage.getItem(`${prefix}_active_vehicle_id`) || 
+                        (isIqmal ? localStorage.getItem('autokira_iqmal_active_vehicle_id') || localStorage.getItem('autokira_active_vehicle_id') : null);
     if (rawActiveId && loadedVehicles.some(v => v.id === rawActiveId)) {
       setActiveVehicleId(rawActiveId);
     } else if (loadedVehicles.length > 0) {
@@ -309,145 +268,20 @@ export default function App() {
     }
 
     // Expenses
-    const rawExp = localStorage.getItem(`${prefix}_expenses`) || (isTargetCloud ? localStorage.getItem('autokira_expenses') : null);
-    if (rawExp) {
-      const list: ExpenseRecord[] = JSON.parse(rawExp);
-      setExpenses(list.filter(item => !deleted.has(item.id)));
-    } else {
-      setExpenses([]);
-    }
+    const rawExp = localStorage.getItem(`${prefix}_expenses`) || 
+                   (isIqmal ? localStorage.getItem('autokira_iqmal_expenses') || localStorage.getItem('autokira_expenses') : null);
+    setExpenses(rawExp ? JSON.parse(rawExp) : []);
 
     // Services
-    const rawSvc = localStorage.getItem(`${prefix}_services`) || (isTargetCloud ? localStorage.getItem('autokira_services') : null);
-    if (rawSvc) {
-      const list: ServiceRecord[] = JSON.parse(rawSvc);
-      setServices(list.filter(item => !deleted.has(item.id)));
-    } else {
-      setServices([]);
-    }
+    const rawSvc = localStorage.getItem(`${prefix}_services`) || 
+                   (isIqmal ? localStorage.getItem('autokira_iqmal_services') || localStorage.getItem('autokira_services') : null);
+    setServices(rawSvc ? JSON.parse(rawSvc) : []);
 
     // Mileage
-    const rawMlg = localStorage.getItem(`${prefix}_mileage`) || (isTargetCloud ? localStorage.getItem('autokira_mileage') : null);
-    if (rawMlg) {
-      const list: MileageRecord[] = JSON.parse(rawMlg);
-      setMileage(list.filter(item => !deleted.has(item.id)));
-    } else {
-      setMileage([]);
-    }
+    const rawMlg = localStorage.getItem(`${prefix}_mileage`) || 
+                   (isIqmal ? localStorage.getItem('autokira_iqmal_mileage') || localStorage.getItem('autokira_mileage') : null);
+    setMileage(rawMlg ? JSON.parse(rawMlg) : []);
   };
-
-  // Firebase Realtime Subscriptions (ONLY ACTIVE FOR iqmalinsyad@gmail.com)
-  useEffect(() => {
-    if (!user || !isCloudSyncUser(user.email)) {
-      return; // Do NOT subscribe for local storage users!
-    }
-
-    try {
-      // Subscribe to deleted IDs from Cloud Firestore to keep all devices synchronized
-      const unsubDeleted = onSnapshot(collection(db, 'autokira_deleted_ids'), (snapshot) => {
-        const set = getDeletedIdsSet();
-        let changed = false;
-        snapshot.forEach((docSnap) => {
-          if (!set.has(docSnap.id)) {
-            set.add(docSnap.id);
-            changed = true;
-          }
-        });
-        if (changed) {
-          localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
-        }
-      }, (err) => console.log('Deleted IDs snapshot sync:', err.message));
-
-      // Subscribe to Expenses
-      const unsubExp = onSnapshot(collection(db, 'autokira_expenses'), (snapshot) => {
-        const freshDeleted = getDeletedIdsSet();
-        const list: ExpenseRecord[] = [];
-        snapshot.forEach((docSnap) => {
-          if (freshDeleted.has(docSnap.id)) {
-            // Document was marked permanently deleted: purge from Firestore
-            deleteDoc(doc(db, 'autokira_expenses', docSnap.id)).catch(() => {});
-          } else {
-            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
-          }
-        });
-        list.sort((a, b) => b.timestamp - a.timestamp);
-        setExpenses(list);
-        if (user) {
-          localStorage.setItem('autokira_iqmal_expenses', JSON.stringify(list));
-          localStorage.setItem('autokira_expenses', JSON.stringify(list));
-        }
-      }, (err) => console.log('Expenses snapshot sync:', err.message));
-
-      // Subscribe to Services
-      const unsubSvc = onSnapshot(collection(db, 'autokira_services'), (snapshot) => {
-        const freshDeleted = getDeletedIdsSet();
-        const list: ServiceRecord[] = [];
-        snapshot.forEach((docSnap) => {
-          if (freshDeleted.has(docSnap.id)) {
-            // Document was marked permanently deleted: purge from Firestore
-            deleteDoc(doc(db, 'autokira_services', docSnap.id)).catch(() => {});
-          } else {
-            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
-          }
-        });
-        list.sort((a, b) => (b.serviceDate || b.timestamp) - (a.serviceDate || a.timestamp));
-        setServices(list);
-        if (user) {
-          localStorage.setItem('autokira_iqmal_services', JSON.stringify(list));
-          localStorage.setItem('autokira_services', JSON.stringify(list));
-        }
-      }, (err) => console.log('Services snapshot sync:', err.message));
-
-      // Subscribe to Mileage
-      const unsubMlg = onSnapshot(collection(db, 'autokira_mileage'), (snapshot) => {
-        const freshDeleted = getDeletedIdsSet();
-        const list: MileageRecord[] = [];
-        snapshot.forEach((docSnap) => {
-          if (freshDeleted.has(docSnap.id)) {
-            // Document was marked permanently deleted: purge from Firestore
-            deleteDoc(doc(db, 'autokira_mileage', docSnap.id)).catch(() => {});
-          } else {
-            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
-          }
-        });
-        list.sort((a, b) => (b.date || b.timestamp) - (a.date || a.timestamp));
-        setMileage(list);
-        if (user) {
-          localStorage.setItem('autokira_iqmal_mileage', JSON.stringify(list));
-          localStorage.setItem('autokira_mileage', JSON.stringify(list));
-        }
-      }, (err) => console.log('Mileage snapshot sync:', err.message));
-
-      // Subscribe to Vehicles
-      const unsubVeh = onSnapshot(collection(db, 'autokira_vehicles'), (snapshot) => {
-        const freshDeleted = getDeletedIdsSet();
-        const list: Vehicle[] = [];
-        snapshot.forEach((docSnap) => {
-          if (freshDeleted.has(docSnap.id)) {
-            // Document was marked permanently deleted: purge from Firestore
-            deleteDoc(doc(db, 'autokira_vehicles', docSnap.id)).catch(() => {});
-          } else {
-            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
-          }
-        });
-        setVehicles(list);
-        if (user) {
-          localStorage.setItem('autokira_iqmal_vehicles', JSON.stringify(list));
-          localStorage.setItem('autokira_vehicles', JSON.stringify(list));
-        }
-      }, (err) => console.log('Vehicles snapshot sync:', err.message));
-
-      return () => {
-        unsubDeleted();
-        unsubExp();
-        unsubSvc();
-        unsubMlg();
-        unsubVeh();
-      };
-    } catch (e) {
-      console.warn('Firebase cloud sync setup error:', e);
-    }
-  }, [user?.email]);
 
   // --- VEHICLE HANDLERS ---
   const handleSelectVehicle = (v: Vehicle) => {
@@ -471,29 +305,26 @@ export default function App() {
     setVehicleModalOpen(true);
   };
 
-  const handleSaveVehicle = async (vehicleData: Partial<Vehicle>) => {
+  const handleSaveVehicle = (vehicleData: Partial<Vehicle>) => {
     try {
       if (editingVehicle) {
-        await unmarkIdAsDeleted(editingVehicle.id, isCloud);
         const updatedVehicle: Vehicle = {
           ...editingVehicle,
           ...vehicleData
         } as Vehicle;
 
-        setVehicles((prev) => prev.map((v) => (v.id === editingVehicle.id ? updatedVehicle : v)));
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_vehicles', editingVehicle.id), updatedVehicle, { merge: true });
-          } catch (e) {
-            console.warn('Cloud sync error for vehicle update:', e);
+        setVehicles((prev) => {
+          const next = prev.map((v) => (v.id === editingVehicle.id ? updatedVehicle : v));
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
 
         addToast('Profil kenderaan berjaya dikemaskini.', 'success');
       } else {
         const newId = 'veh_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-        await unmarkIdAsDeleted(newId, isCloud);
         const newVehicle: Vehicle = {
           id: newId,
           plateNumber: vehicleData.plateNumber || 'CAR 001',
@@ -522,16 +353,15 @@ export default function App() {
           }
         };
 
-        setVehicles((prev) => [...prev, newVehicle]);
-        setActiveVehicleId(newVehicle.id);
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_vehicles', newId), newVehicle);
-          } catch (e) {
-            console.warn('Cloud sync error for vehicle insert:', e);
+        setVehicles((prev) => {
+          const next = [...prev, newVehicle];
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
+        setActiveVehicleId(newVehicle.id);
 
         addToast(`Profil kenderaan ${newVehicle.plateNumber} berjaya ditambah!`, 'success');
       }
@@ -541,17 +371,15 @@ export default function App() {
     }
   };
 
-  const handleUpdateVehicleImage = async (vehId: string, imageBase64: string) => {
-    setVehicles((prev) =>
-      prev.map((v) => (v.id === vehId ? { ...v, image: imageBase64 } : v))
-    );
-    if (isCloud) {
-      try {
-        await setDoc(doc(db, 'autokira_vehicles', vehId), { image: imageBase64 }, { merge: true });
-      } catch (e) {
-        console.warn('Cloud image sync error:', e);
+  const handleUpdateVehicleImage = (vehId: string, imageBase64: string) => {
+    setVehicles((prev) => {
+      const next = prev.map((v) => (v.id === vehId ? { ...v, image: imageBase64 } : v));
+      if (user) {
+        const prefix = getStoragePrefix(user);
+        localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(next));
       }
-    }
+      return next;
+    });
     addToast('Gambar profil kenderaan berjaya dikemaskini!', 'success');
   };
 
@@ -604,32 +432,28 @@ export default function App() {
     setDeleteModalOpen(true);
   };
 
-  // Save Expense
-  const handleSaveExpense = async (data: Partial<ExpenseRecord>, id?: string) => {
+  // Save Expense (Local Storage)
+  const handleSaveExpense = (data: Partial<ExpenseRecord>, id?: string) => {
     try {
       if (id) {
-        await unmarkIdAsDeleted(id, isCloud);
         const updatedItem: ExpenseRecord = {
           ...(expenses.find((x) => x.id === id) || {}),
           ...data,
           id
         } as ExpenseRecord;
 
-        setExpenses((prev) =>
-          prev.map((item) => (item.id === id ? updatedItem : item))
-        );
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_expenses', id), updatedItem, { merge: true });
-          } catch (e) {
-            console.warn('Cloud sync error for expense update:', e);
+        setExpenses((prev) => {
+          const next = prev.map((item) => (item.id === id ? updatedItem : item));
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_expenses`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
+
         addToast('Kos harian dikemaskini.', 'success');
       } else {
         const newId = 'exp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        await unmarkIdAsDeleted(newId, isCloud);
         const newRecord: ExpenseRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -643,15 +467,15 @@ export default function App() {
           notes: data.notes
         };
 
-        setExpenses((prev) => [newRecord, ...prev]);
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_expenses', newId), newRecord);
-          } catch (e) {
-            console.warn('Cloud sync error for expense insert:', e);
+        setExpenses((prev) => {
+          const next = [newRecord, ...prev];
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_expenses`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
+
         addToast('Rekod kos harian disimpan.', 'success');
       }
     } catch (e) {
@@ -660,32 +484,28 @@ export default function App() {
     }
   };
 
-  // Save Service
-  const handleSaveService = async (data: Partial<ServiceRecord>, id?: string) => {
+  // Save Service (Local Storage)
+  const handleSaveService = (data: Partial<ServiceRecord>, id?: string) => {
     try {
       if (id) {
-        await unmarkIdAsDeleted(id, isCloud);
         const updatedItem: ServiceRecord = {
           ...(services.find((x) => x.id === id) || {}),
           ...data,
           id
         } as ServiceRecord;
 
-        setServices((prev) =>
-          prev.map((item) => (item.id === id ? updatedItem : item))
-        );
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_services', id), updatedItem, { merge: true });
-          } catch (e) {
-            console.warn('Cloud sync error for service update:', e);
+        setServices((prev) => {
+          const next = prev.map((item) => (item.id === id ? updatedItem : item));
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_services`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
+
         addToast('Rekod servis dikemaskini.', 'success');
       } else {
         const newId = 'svc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        await unmarkIdAsDeleted(newId, isCloud);
         const newRecord: ServiceRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -699,7 +519,14 @@ export default function App() {
           timestamp: Date.now()
         };
 
-        setServices((prev) => [newRecord, ...prev]);
+        setServices((prev) => {
+          const next = [newRecord, ...prev];
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_services`, JSON.stringify(next));
+          }
+          return next;
+        });
 
         // If mileage was recorded, update vehicle's current odometer & target service
         if (data.mileage && activeVehicle) {
@@ -714,13 +541,6 @@ export default function App() {
           );
         }
 
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_services', newId), newRecord);
-          } catch (e) {
-            console.warn('Cloud sync error for service insert:', e);
-          }
-        }
         addToast('Rekod servis berjaya disimpan!', 'success');
       }
     } catch (e) {
@@ -729,32 +549,28 @@ export default function App() {
     }
   };
 
-  // Save Mileage
-  const handleSaveMileage = async (data: Partial<MileageRecord>, id?: string) => {
+  // Save Mileage (Local Storage)
+  const handleSaveMileage = (data: Partial<MileageRecord>, id?: string) => {
     try {
       if (id) {
-        await unmarkIdAsDeleted(id, isCloud);
         const updatedItem: MileageRecord = {
           ...(mileage.find((x) => x.id === id) || {}),
           ...data,
           id
         } as MileageRecord;
 
-        setMileage((prev) =>
-          prev.map((item) => (item.id === id ? updatedItem : item))
-        );
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_mileage', id), updatedItem, { merge: true });
-          } catch (e) {
-            console.warn('Cloud sync error for mileage update:', e);
+        setMileage((prev) => {
+          const next = prev.map((item) => (item.id === id ? updatedItem : item));
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_mileage`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
+
         addToast('Tuntutan mileage dikemaskini.', 'success');
       } else {
         const newId = 'mlg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        await unmarkIdAsDeleted(newId, isCloud);
         const newRecord: MileageRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -767,15 +583,15 @@ export default function App() {
           timestamp: Date.now()
         };
 
-        setMileage((prev) => [newRecord, ...prev]);
-
-        if (isCloud) {
-          try {
-            await setDoc(doc(db, 'autokira_mileage', newId), newRecord);
-          } catch (e) {
-            console.warn('Cloud sync error for mileage insert:', e);
+        setMileage((prev) => {
+          const next = [newRecord, ...prev];
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_mileage`, JSON.stringify(next));
           }
-        }
+          return next;
+        });
+
         addToast('Tuntutan mileage berjaya disimpan!', 'success');
       }
     } catch (e) {
@@ -784,29 +600,20 @@ export default function App() {
     }
   };
 
-  // Execute Permanent Delete
-  const handleConfirmDelete = async () => {
+  // Execute Permanent Delete (100% Local Storage - Gone forever with zero cloud fetch back)
+  const handleConfirmDelete = () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
 
     try {
-      // 1. Mark as permanently deleted (local + cloud)
-      const colName = type === 'exp' ? 'autokira_expenses' : type === 'svc' ? 'autokira_services' : type === 'mlg' ? 'autokira_mileage' : 'autokira_vehicles';
-      await markIdAsDeleted(id, colName, isCloud);
-
       if (type === 'exp') {
         const remaining = expenses.filter((x) => x.id !== id);
         setExpenses(remaining);
         if (user) {
-          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          const prefix = getStoragePrefix(user);
           localStorage.setItem(`${prefix}_expenses`, JSON.stringify(remaining));
-          if (isCloud) localStorage.setItem('autokira_expenses', JSON.stringify(remaining));
-        }
-        if (isCloud) {
-          try {
-            await deleteDoc(doc(db, 'autokira_expenses', id));
-          } catch (e) {
-            console.warn('Firebase deleteDoc error:', e);
+          if (prefix === 'autokira_iqmal') {
+            localStorage.setItem('autokira_expenses', JSON.stringify(remaining));
           }
         }
         addToast('Rekod perbelanjaan berjaya dipadam secara kekal.', 'success');
@@ -814,15 +621,10 @@ export default function App() {
         const remaining = services.filter((x) => x.id !== id);
         setServices(remaining);
         if (user) {
-          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          const prefix = getStoragePrefix(user);
           localStorage.setItem(`${prefix}_services`, JSON.stringify(remaining));
-          if (isCloud) localStorage.setItem('autokira_services', JSON.stringify(remaining));
-        }
-        if (isCloud) {
-          try {
-            await deleteDoc(doc(db, 'autokira_services', id));
-          } catch (e) {
-            console.warn('Firebase deleteDoc error:', e);
+          if (prefix === 'autokira_iqmal') {
+            localStorage.setItem('autokira_services', JSON.stringify(remaining));
           }
         }
         addToast('Rekod servis berjaya dipadam secara kekal.', 'success');
@@ -830,15 +632,10 @@ export default function App() {
         const remaining = mileage.filter((x) => x.id !== id);
         setMileage(remaining);
         if (user) {
-          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          const prefix = getStoragePrefix(user);
           localStorage.setItem(`${prefix}_mileage`, JSON.stringify(remaining));
-          if (isCloud) localStorage.setItem('autokira_mileage', JSON.stringify(remaining));
-        }
-        if (isCloud) {
-          try {
-            await deleteDoc(doc(db, 'autokira_mileage', id));
-          } catch (e) {
-            console.warn('Firebase deleteDoc error:', e);
+          if (prefix === 'autokira_iqmal') {
+            localStorage.setItem('autokira_mileage', JSON.stringify(remaining));
           }
         }
         addToast('Rekod tuntutan mileage berjaya dipadam secara kekal.', 'success');
@@ -854,15 +651,10 @@ export default function App() {
           setActiveVehicleId(remaining[0].id);
         }
         if (user) {
-          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          const prefix = getStoragePrefix(user);
           localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(remaining));
-          if (isCloud) localStorage.setItem('autokira_vehicles', JSON.stringify(remaining));
-        }
-        if (isCloud) {
-          try {
-            await deleteDoc(doc(db, 'autokira_vehicles', id));
-          } catch (e) {
-            console.warn('Firebase deleteDoc error:', e);
+          if (prefix === 'autokira_iqmal') {
+            localStorage.setItem('autokira_vehicles', JSON.stringify(remaining));
           }
         }
         addToast('Profil kenderaan berjaya dipadam secara kekal.', 'success');
@@ -876,27 +668,10 @@ export default function App() {
     }
   };
 
-  // Google Sign In & Account Switching
-  const handleGoogleSignIn = async (customEmail?: string) => {
+  // Google Sign In
+  const handleGoogleSignIn = async () => {
     try {
       localStorage.removeItem('autokira_logged_out');
-
-      if (customEmail) {
-        const cleanEmail = customEmail.trim().toLowerCase();
-        const isTargetIqmal = isCloudSyncUser(cleanEmail);
-        const loggedUser: UserProfile = {
-          uid: isTargetIqmal ? 'user_iqmal_insyad' : `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
-          displayName: isTargetIqmal ? 'Iqmal Insyad' : cleanEmail.split('@')[0],
-          email: cleanEmail,
-          photoURL: isTargetIqmal ? 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4' : undefined
-        };
-        setUser(loggedUser);
-        localStorage.setItem('autokira_user', JSON.stringify(loggedUser));
-        loadUserDataForAccount(loggedUser);
-        addToast(`Berjaya log masuk: ${loggedUser.displayName} (${isTargetIqmal ? 'Firebase Cloud' : 'Storan Tempatan'})`, 'success');
-        return;
-      }
-
       const res = await loginWithGoogle();
       if (res && res.user) {
         const fbUser = res.user;
@@ -913,7 +688,6 @@ export default function App() {
       }
     } catch (error: any) {
       console.warn("Google popup encounter:", error);
-      // If error occurred (popup blocked or dismissed), show message and do NOT auto login
       addToast('Log masuk Google dibatalkan atau terhalang. Sila cuba lagi.', 'error');
     }
   };

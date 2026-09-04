@@ -77,7 +77,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="mt-4 space-y-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-extrabold uppercase tracking-widest">
               <Zap className="w-3 h-3 fill-orange-400" />
-              <span>KIRA . REKOD . URUS</span>
+              <span>Automotive Engine OS</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Auto<span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-400">Kira</span>
@@ -176,7 +176,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       {/* Footer Branding */}
       <footer className="w-full max-w-md mx-auto text-center pt-3 border-t border-white/5 z-10">
         <p className="text-[10px] text-slate-500 font-medium">
-          AutoKira @ Aidee Creatives • Hak Cipta Terpelihara
+          AutoKira Automotive Engine • Hak Cipta Terpelihara
         </p>
       </footer>
 
