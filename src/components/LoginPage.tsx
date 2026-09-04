@@ -176,7 +176,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       {/* Footer Branding */}
       <footer className="w-full max-w-md mx-auto text-center pt-3 border-t border-white/5 z-10">
         <p className="text-[10px] text-slate-500 font-medium">
-          AutoKira Automotive Engine • Hak Cipta Terpelihara
+          AutoKira @ Aidee Creatives • Hak Cipta Terpelihara
         </p>
       </footer>
 
