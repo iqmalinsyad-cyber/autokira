@@ -10,9 +10,11 @@ import {
   Car, 
   Database,
   Smartphone,
+  Download,
   Trash2
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -30,11 +32,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSignOut
 }) => {
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const { isInstallable, isInstalled, installPWA } = usePWAInstall();
 
   if (!isOpen) return null;
 
-  const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
   const mainLogoUrl = "https://lh3.googleusercontent.com/d/1GIRN_j3cMTDYDhfKbNocxUb7_ZCO2uHq";
 
   const handleSignOut = async () => {
@@ -46,6 +48,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInstallClick = async () => {
+    const success = await installPWA();
+    if (!success && !isInstallable) {
+      setShowInstallGuide(true);
     }
   };
 
@@ -94,7 +103,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </p>
             </div>
 
-            <div className="mt-5 space-y-2">
+            {/* PWA Install Button inside Profile */}
+            {!isInstalled && (
+              <div className="mt-4">
+                <button
+                  onClick={handleInstallClick}
+                  className="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Pasang Aplikasi (Install App)</span>
+                </button>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-2">
               <button
                 onClick={handleSignOut}
                 disabled={loading}
@@ -121,12 +143,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               Sambungkan akaun Google anda untuk mula merekod kos dan penyelenggaraan kenderaan.
             </p>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-2.5">
               <button
                 onClick={() => onGoogleSignIn()}
                 className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs flex items-center justify-center gap-3 transition-all shadow-lg active:scale-98 cursor-pointer"
               >
                 <span>Log Masuk Dengan Google</span>
+              </button>
+
+              {!isInstalled && (
+                <button
+                  onClick={handleInstallClick}
+                  className="w-full py-2.5 px-3 rounded-2xl bg-[#1e2432] hover:bg-[#283142] text-orange-400 font-bold text-xs flex items-center justify-center gap-2 border border-white/5 transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Pasang Aplikasi (Install App)</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal Manual Install Guide */}
+        {showInstallGuide && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-[#141822] border border-orange-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-orange-400" />
+                  <h3 className="font-bold text-sm text-white">Cara Pasang pada Telefon</h3>
+                </div>
+                <button
+                  onClick={() => setShowInstallGuide(false)}
+                  className="text-slate-400 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-300">
+                <div className="bg-[#1b212f] p-3 rounded-2xl border border-white/5 space-y-1.5">
+                  <p className="font-bold text-orange-400">Pengguna Android (Chrome):</p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1 text-[11px]">
+                    <li>Tekan ikon <strong>tiga titik (⋮)</strong> di sudut atas browser.</li>
+                    <li>Pilih <strong>"Install app"</strong> atau <strong>"Add to Home screen"</strong>.</li>
+                    <li>Tekan <strong>"Install"</strong> untuk simpan ke skrin utama.</li>
+                  </ol>
+                </div>
+
+                <div className="bg-[#1b212f] p-3 rounded-2xl border border-white/5 space-y-1.5">
+                  <p className="font-bold text-orange-400">Pengguna iOS / iPhone (Safari):</p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1 text-[11px]">
+                    <li>Tekan butang <strong>Share</strong> (ikon anak panah atas).</li>
+                    <li>Pilih <strong>"Add to Home Screen"</strong>.</li>
+                    <li>Tekan <strong>"Add"</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowInstallGuide(false)}
+                className="w-full py-2.5 bg-orange-500 text-white font-extrabold rounded-xl text-xs hover:bg-orange-600 transition-colors cursor-pointer"
+              >
+                Faham & Tutup
               </button>
             </div>
           </div>

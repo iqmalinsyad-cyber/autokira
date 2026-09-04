@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Fuel, 
@@ -72,6 +72,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   const [mlgKm, setMlgKm] = useState<string>('');
   const [isAutoRate, setIsAutoRate] = useState<boolean>(true);
   const [ratePerKm, setRatePerKm] = useState<string>('0.70');
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -455,31 +456,11 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Liter Input & Auto-Calculator */}
+                  {/* Liter Input */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        Jumlah Liter (L)
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleAutoCalcLiters(2.05)}
-                          className="px-2 py-0.5 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-bold transition-colors cursor-pointer"
-                          title="Kira liter mengikut kadar RON95 RM2.05/L"
-                        >
-                          Auto RON95 (RM2.05)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAutoCalcLiters(2.95)}
-                          className="px-2 py-0.5 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold transition-colors cursor-pointer"
-                          title="Kira liter mengikut kadar Diesel RM2.95/L"
-                        >
-                          Diesel
-                        </button>
-                      </div>
-                    </div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Jumlah Liter (L)
+                    </label>
 
                     <div className="bg-[#141822] border border-white/10 focus-within:border-emerald-500 rounded-xl p-2.5 px-3.5 flex items-center justify-between gap-2">
                       <input
@@ -487,7 +468,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                         step="0.01"
                         placeholder="Contoh: 24.39"
                         value={fuelLiters}
-                        onChange={(e) => handleLitersChange(e.target.value)}
+                        onChange={(e) => setFuelLiters(e.target.value)}
                         className="w-full bg-transparent text-lg font-extrabold text-emerald-400 focus:outline-none placeholder-slate-600"
                       />
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">
@@ -503,16 +484,16 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                   Tujuan Perjalanan
                 </label>
-                <div className="bg-[#1b202c] p-1 rounded-2xl flex gap-1 border border-white/5">
-                  {['Pergi Kerja', 'Balik Kerja', 'Urusan Luar'].map((t) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 bg-[#1b202c] p-1.5 rounded-2xl border border-white/5">
+                  {['Pergi Kerja', 'Balik Kerja', 'Balik Kampung', 'Bercuti', 'Lain-lain'].map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setExpTripType(t)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
                         expTripType === t
                           ? 'bg-orange-500 text-white shadow-md'
-                          : 'text-slate-400 hover:text-white'
+                          : 'text-slate-400 hover:text-white bg-[#141822]/50 hover:bg-[#141822]'
                       }`}
                     >
                       {t}
@@ -534,15 +515,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                     required
                     placeholder="0.00"
                     value={amount}
-                    onChange={(e) => {
-                      setAmount(e.target.value);
-                      if (expCategory === 'Minyak' && e.target.value) {
-                        const amt = parseFloat(e.target.value);
-                        if (!isNaN(amt) && amt > 0 && (!fuelLiters || fuelLiters === '0')) {
-                          setFuelLiters((amt / 2.05).toFixed(2));
-                        }
-                      }
-                    }}
+                    onChange={(e) => setAmount(e.target.value)}
                     className="w-full bg-transparent text-3xl font-extrabold text-white focus:outline-none placeholder-slate-600"
                   />
                 </div>
@@ -850,38 +823,52 @@ export const RecordModal: React.FC<RecordModalProps> = ({
               Bukti Resit / Invois / Odometer
             </label>
 
+            {/* Hidden file input for upload / replace */}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+
             {receiptImage ? (
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 h-36 group shadow-inner">
-                <img src={receiptImage} alt="Receipt" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="bg-[#181d28] border border-white/10 rounded-2xl p-3 space-y-2.5">
+                <div className="relative rounded-xl overflow-hidden border border-white/10 h-44 bg-black/40">
+                  <img src={receiptImage} alt="Receipt" className="w-full h-full object-contain" />
+                </div>
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setReceiptImage(null)}
-                    className="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#222938] hover:bg-[#2c3548] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-white/5"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Camera className="w-3.5 h-3.5 text-orange-400" />
+                    <span>Tukar Gambar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReceiptImage(null);
+                      if (imageInputRef.current) imageInputRef.current.value = '';
+                    }}
+                    className="py-2 px-3.5 rounded-xl bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-red-500/30"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Padam Gambar</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setReceiptImage(null)}
-                  className="sm:hidden absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
             ) : (
-              <label className="cursor-pointer w-full h-28 border-2 border-dashed border-white/15 hover:border-orange-500/50 rounded-2xl bg-[#1b202c] hover:bg-[#222836] flex flex-col items-center justify-center text-slate-400 hover:text-white transition-all">
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="cursor-pointer w-full h-28 border-2 border-dashed border-white/15 hover:border-orange-500/50 rounded-2xl bg-[#1b202c] hover:bg-[#222836] flex flex-col items-center justify-center text-slate-400 hover:text-white transition-all"
+              >
                 <Camera className="w-6 h-6 text-orange-400 mb-1.5" />
                 <span className="text-xs font-bold">Ambil Gambar / Muat Naik Resit</span>
                 <span className="text-[10px] text-slate-500 mt-0.5">Format JPG / PNG</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
+              </button>
             )}
           </div>
 

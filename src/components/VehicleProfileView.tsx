@@ -44,7 +44,7 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
     activeVehicle?.id || (vehicles.length > 0 ? vehicles[0].id : '')
   );
-  const [activeSubTab, setActiveSubTab] = useState<'details' | 'docs' | 'insurance' | 'specs'>('details');
+  const [activeSubTab, setActiveSubTab] = useState<'details' | 'insurance' | 'specs'>('details');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentVehicle = vehicles.find(v => v.id === selectedVehicleId) || activeVehicle || vehicles[0];
@@ -293,41 +293,28 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveSubTab('docs')}
-              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border cursor-pointer ${
-                activeSubTab === 'docs'
-                  ? 'bg-[#1e2432] border-orange-500 text-white'
-                  : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
-              }`}
-              title="Documents & Geran"
-            >
-              <FileText className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
               onClick={() => setActiveSubTab('insurance')}
-              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border cursor-pointer ${
+              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
                 activeSubTab === 'insurance'
-                  ? 'bg-[#1e2432] border-orange-500 text-white'
+                  ? 'bg-[#1e2432] border-orange-500 text-white shadow-sm'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
               }`}
-              title="Insurans & Cukai Jalan"
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4 text-emerald-400" />
+              <span>Insurans & Roadtax</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveSubTab('specs')}
-              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border cursor-pointer ${
+              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
                 activeSubTab === 'specs'
-                  ? 'bg-[#1e2432] border-orange-500 text-white'
+                  ? 'bg-[#1e2432] border-orange-500 text-white shadow-sm'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
               }`}
-              title="OBD & Spesifikasi"
             >
-              <Sliders className="w-4 h-4" />
+              <Sliders className="w-4 h-4 text-indigo-400" />
+              <span>Spesifikasi</span>
             </button>
           </div>
 
@@ -394,14 +381,6 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
               </>
             )}
 
-            {activeSubTab === 'docs' && (
-              <div className="py-2 text-center text-slate-400 text-xs space-y-2">
-                <FileText className="w-8 h-8 mx-auto text-slate-500 mb-1" />
-                <p className="font-bold text-slate-300">Dokumen Geran & Invois Pembelian</p>
-                <p className="text-[11px] text-slate-500">Semua rekod pemilikan kenderaan disimpan selamat dalam pangkalan data AutoKira.</p>
-              </div>
-            )}
-
             {activeSubTab === 'specs' && (
               <>
                 <div className="flex justify-between items-center py-1 text-xs">
@@ -412,11 +391,6 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
                   <span className="text-slate-400 font-medium">Sasaran Servis Akan Datang:</span>
                   <span className="font-bold text-orange-400">{currentVehicle.targetNextServiceKm?.toLocaleString() || '65,000'} KM</span>
-                </div>
-
-                <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">Status ECU & Sensor:</span>
-                  <span className="font-bold text-emerald-400">Normal & Diagnostik Sihat</span>
                 </div>
               </>
             )}

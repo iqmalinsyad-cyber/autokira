@@ -306,6 +306,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   };
 
+  // Helper to convert base64 dataUrl to Blob for reliable downloads on Android/iOS/Desktop
+  const dataURLtoBlob = (dataUrl: string): Blob => {
+    const arr = dataUrl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
   // Generate Image from the Infographic Card
   const handleDownloadInfographic = async () => {
     if (!infographicRef.current) return;
@@ -318,15 +332,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         backgroundColor: '#0f131a'
       });
 
+      const blob = dataURLtoBlob(dataUrl);
+      const blobUrl = URL.createObjectURL(blob);
+
       const link = document.createElement('a');
       link.download = `autokira-infografik-${type}-${Date.now()}.png`;
-      link.href = dataUrl;
+      link.href = blobUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
       
       setImageSuccessMsg('Imej Infografik Berjaya Dimuat Turun!');
       setTimeout(() => setImageSuccessMsg(null), 3000);
     } catch (err) {
       console.error('Gagal menjana imej', err);
+      setImageSuccessMsg('Ralat memuat turun imej. Sila cuba lagi.');
+      setTimeout(() => setImageSuccessMsg(null), 3000);
     } finally {
       setIsGeneratingImage(false);
     }
@@ -343,9 +365,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         backgroundColor: '#0f131a'
       });
 
-      // Convert dataUrl to blob
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
+      const blob = dataURLtoBlob(dataUrl);
       const file = new File([blob], `autokira-infografik-${type}.png`, { type: 'image/png' });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -355,11 +375,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           text: `Ringkasan perbelanjaan ${vehPlate} (${periodLabel}) melalui AutoKira App.`
         });
       } else {
-        // Fallback: download the image
+        // Fallback: download the image via blob
+        const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = `autokira-infografik-${type}-${Date.now()}.png`;
-        link.href = dataUrl;
+        link.href = blobUrl;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+
         setImageSuccessMsg('Imej disimpan untuk dikongsi ke media sosial!');
         setTimeout(() => setImageSuccessMsg(null), 3500);
       }
@@ -371,7 +396,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
       <div 
         className="w-full max-w-lg bg-[#141822] border border-white/10 rounded-3xl max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}

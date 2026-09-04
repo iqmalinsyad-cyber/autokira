@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "AutoKira - Jurnal, Servis & Profil Kenderaan",
+  "short_name": "AutoKira",
+  "description": "Aplikasi pengurusan perbelanjaan harian kenderaan, rekod servis, tuntutan mileage dan profil kenderaan dengan log masuk Google.",
+  "theme_color": "#080a0f",
+  "background_color": "#080a0f",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/d/1GIRN_j3cMTDYDhfKbNocxUb7_ZCO2uHq",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/d/1GIRN_j3cMTDYDhfKbNocxUb7_ZCO2uHq",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

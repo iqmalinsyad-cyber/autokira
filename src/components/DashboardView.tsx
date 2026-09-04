@@ -41,13 +41,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const targetService = vehicle?.targetNextServiceKm || (currentOdo + 500);
   const kmToService = Math.max(0, targetService - currentOdo);
 
-  // Current Month Tol calculation
+  // Current Month Calculations (Tol, Minyak & Liters, Parking)
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
   const currentMonthExpenses = expenses.filter(item => {
-    // If vehicle filter applies
     if (vehicle && item.vehicleId && item.vehicleId !== vehicle.id) {
       return false;
     }
@@ -59,14 +58,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .filter(x => x.category === 'Tol')
     .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
+  const totalFuelCostThisMonth = currentMonthExpenses
+    .filter(x => x.category === 'Minyak')
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+  const totalFuelLitersThisMonth = currentMonthExpenses
+    .filter(x => x.category === 'Minyak')
+    .reduce((acc, curr) => acc + (Number(curr.liters) || 0), 0);
+
+  const totalParkingThisMonth = currentMonthExpenses
+    .filter(x => x.category === 'Parking')
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
   const totalExpensesThisMonth = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const totalServicesCost = services.reduce((acc, curr) => acc + curr.amount, 0);
   const totalMileageAmount = mileage.reduce((acc, curr) => acc + curr.amount, 0);
 
-  const fuelDisplay = vehicle?.telemetry?.fuelLevelLtrs ?? 31.45;
-  const batteryDisplay = vehicle?.telemetry?.batteryVoltage ?? 12.0;
-  const locationDisplay = vehicle?.telemetry?.locationName ?? "Lebuhraya PLUS / Bandar Baru Bangi";
-  const lastUpdatedDisplay = vehicle?.telemetry?.lastUpdated ?? "12 jam lalu";
+  const lastUpdatedDisplay = vehicle?.telemetry?.lastUpdated ?? "Hari ini";
 
   return (
     <div className="space-y-4 sm:space-y-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
@@ -108,18 +116,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </button>
       </div>
 
-      {/* 4 Telemetry Grid Cards (Responsive 2x2 on mobile, 4-col on tablet/desktop) */}
+      {/* 4 Telemetry Grid Cards (Solid Colors: Blue Tol, Green Minyak, Purple Distance, Orange Parking) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {/* Card 1: Penggunaan Tol Bulan Semasa (Vibrant Orange Card) */}
+        {/* Card 1: Penggunaan Tol Bulan Semasa (Solid Blue) */}
         <div 
           onClick={() => onChangeTab('expenses')}
-          className="bg-gradient-to-br from-[#ff5e00] to-[#ff7700] rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(255,94,0,0.3)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+          className="bg-blue-600 border border-blue-500 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(37,99,235,0.35)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
         >
           <div className="flex justify-between items-start">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
               <Car className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <span className="text-[10px] font-bold bg-black/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-white">
+            <span className="text-[10px] font-bold bg-black/25 backdrop-blur-sm px-2 py-0.5 rounded-full text-white">
               Bulan Ini
             </span>
           </div>
@@ -134,74 +142,77 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 2: Est. Fuel Usage */}
+        {/* Card 2: Jumlah Kos Minyak & Liter (Solid Green) */}
         <div 
           onClick={() => onChangeTab('expenses')}
-          className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+          className="bg-emerald-600 border border-emerald-500 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(5,150,105,0.35)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
         >
           <div className="flex justify-between items-start">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#222834] flex items-center justify-center text-slate-300">
-              <Fuel className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <Fuel className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
+            <span className="text-[10px] font-bold bg-black/25 backdrop-blur-sm px-2 py-0.5 rounded-full text-white">
+              {totalFuelLitersThisMonth > 0 ? `${totalFuelLitersThisMonth.toFixed(1)} L` : 'Bulan Ini'}
+            </span>
           </div>
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{fuelDisplay}</span>
-              <span className="text-xs font-bold text-slate-400">Ltrs</span>
+              <span className="text-xs font-bold text-white/80">RM</span>
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {totalFuelCostThisMonth.toFixed(2)}
+              </span>
             </div>
-            <p className="text-xs font-semibold text-slate-400 mt-0.5">Est. Fuel Usage</p>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">
+              Kos Minyak ({totalFuelLitersThisMonth.toFixed(1)}L)
+            </p>
           </div>
         </div>
 
-        {/* Card 3: Total Distance / Odometer */}
+        {/* Card 3: Total Distance / Odometer (Solid Purple) */}
         <div 
           onClick={() => onChangeTab('services')}
-          className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+          className="bg-purple-600 border border-purple-500 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(147,51,234,0.35)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
         >
           <div className="flex justify-between items-start">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#222834] flex items-center justify-center text-slate-300">
-              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
+            <span className="text-[10px] font-bold bg-black/25 backdrop-blur-sm px-2 py-0.5 rounded-full text-white">
+              Odometer
+            </span>
           </div>
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{currentOdo.toLocaleString()}</span>
-              <span className="text-xs font-bold text-slate-400">km</span>
+              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                {currentOdo.toLocaleString()}
+              </span>
+              <span className="text-xs font-bold text-white/80">km</span>
             </div>
-            <p className="text-xs font-semibold text-slate-400 mt-0.5">Total Distance</p>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Total Distance</p>
           </div>
         </div>
 
-        {/* Card 4: Battery Voltage */}
-        <div className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98">
+        {/* Card 4: Jumlah Parking Bulan Semasa (Solid Orange) */}
+        <div 
+          onClick={() => onChangeTab('expenses')}
+          className="bg-orange-600 border border-orange-500 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(234,88,12,0.35)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+        >
           <div className="flex justify-between items-start">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#222834] flex items-center justify-center text-slate-300">
-              <Battery className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <Navigation className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
+            <span className="text-[10px] font-bold bg-black/25 backdrop-blur-sm px-2 py-0.5 rounded-full text-white">
+              Bulan Ini
+            </span>
           </div>
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{batteryDisplay.toFixed(1)}</span>
-              <span className="text-xs font-bold text-slate-400">V</span>
+              <span className="text-xs font-bold text-white/80">RM</span>
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {totalParkingThisMonth.toFixed(2)}
+              </span>
             </div>
-            <p className="text-xs font-semibold text-slate-400 mt-0.5">Battery</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Location Card with stylized radar/map background */}
-      <div className="bg-[#181d26] border border-white/5 rounded-3xl p-4 relative overflow-hidden shadow-lg group">
-        <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-15 pointer-events-none bg-[radial-gradient(#ff6b00_1px,transparent_1px)] [background-size:12px_12px]"></div>
-        <div className="flex items-start gap-3.5 relative z-10">
-          <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-            <MapPin className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lokasi Semasa</p>
-            <p className="text-sm font-bold text-white mt-0.5 truncate">{locationDisplay}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-              {vehicle ? `${vehicle.plateNumber} • ${vehicle.brand} ${vehicle.model}` : "Tiada sambungan GPS"}
-            </p>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Jumlah Parking</p>
           </div>
         </div>
       </div>
