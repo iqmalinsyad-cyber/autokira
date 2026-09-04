@@ -698,10 +698,38 @@ export default function App() {
           email: fbUser.email || 'iqmalinsyad@gmail.com',
           photoURL: fbUser.photoURL || undefined
         };
+
+        // Determine if user is logging in for the first time
+        const userSeenKey = `autokira_seen_user_${loggedInUser.uid || loggedInUser.email}`;
+        const hasBeenSeenBefore = localStorage.getItem(userSeenKey);
+        const isFirstTimeUser = Boolean(res.isNewUser) || !hasBeenSeenBefore;
+
+        if (!hasBeenSeenBefore) {
+          localStorage.setItem(userSeenKey, 'true');
+        }
+
         setUser(loggedInUser);
         localStorage.setItem('autokira_user', JSON.stringify(loggedInUser));
         loadUserDataForAccount(loggedInUser);
         addToast(`Selamat datang, ${loggedInUser.displayName}!`, 'success');
+
+        // Dispatch Telegram bot notification safely via server-side endpoint
+        try {
+          fetch('/api/telegram/notify-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              displayName: loggedInUser.displayName,
+              email: loggedInUser.email,
+              uid: loggedInUser.uid,
+              isNewUser: isFirstTimeUser,
+              userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web App',
+              time: new Date().toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' })
+            })
+          }).catch((err) => console.log('Telegram notify error note:', err));
+        } catch (tgErr) {
+          console.log('Telegram dispatch error:', tgErr);
+        }
       }
     } catch (error: any) {
       console.warn("Google popup encounter:", error);

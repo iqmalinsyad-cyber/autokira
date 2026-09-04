@@ -10,8 +10,11 @@ import {
   ChevronRight,
   Zap,
   Gauge,
-  Smartphone
+  Smartphone,
+  Download,
+  X
 } from 'lucide-react';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface LoginPageProps {
   onGoogleSignIn: (customEmail?: string) => Promise<void>;
@@ -24,8 +27,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const { isInstallable, isInstalled, installPWA } = usePWAInstall();
 
   const mainLogoUrl = "https://lh3.googleusercontent.com/d/1GIRN_j3cMTDYDhfKbNocxUb7_ZCO2uHq";
+
+  const handleInstallClick = async () => {
+    const success = await installPWA();
+    if (!success && !isInstallable) {
+      setShowInstallGuide(true);
+    }
+  };
 
   const handleStandardSignIn = async () => {
     setLoading(true);
@@ -77,13 +89,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="mt-4 space-y-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-extrabold uppercase tracking-widest">
               <Zap className="w-3 h-3 fill-orange-400" />
-              <span>KIRA . REKOD . URUS</span>
+              <span>Automotive Engine OS</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Auto<span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-400">Kira</span>
             </h1>
             <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
-              Sistem Pengurusan Kos & Penyelenggaraan Kenderaan
+              Sistem Pengurusan Kos & Penyelenggaraan Kenderaan Pintar
             </p>
           </div>
         </div>
@@ -116,7 +128,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <Car className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-white truncate">Profil Kenderaan</p>
+                <p className="text-[11px] font-bold text-white truncate">Profil Garaj</p>
                 <p className="text-[9px] text-slate-400 truncate">Kereta & Motorsikal</p>
               </div>
             </div>
@@ -126,7 +138,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <Navigation className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-white truncate">Tuntutan Perjalanan</p>
+                <p className="text-[11px] font-bold text-white truncate">Tuntutan KM</p>
                 <p className="text-[9px] text-slate-400 truncate">RM 0.70 / KM</p>
               </div>
             </div>
@@ -144,8 +156,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         )}
 
-        {/* EXCLUSIVE GOOGLE SIGN-IN BUTTON */}
-        <div className="w-full">
+        {/* EXCLUSIVE GOOGLE SIGN-IN BUTTON & PWA INSTALL */}
+        <div className="w-full space-y-3">
           <button
             onClick={handleStandardSignIn}
             disabled={loading || isLoading}
@@ -169,14 +181,71 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </>
             )}
           </button>
+
+          {!isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              className="w-full py-3 px-4 rounded-2xl bg-[#181d28] hover:bg-[#222836] border border-orange-500/30 hover:border-orange-500 text-orange-400 font-extrabold text-xs flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-orange-400" />
+              <span>Pasang Aplikasi (Install App)</span>
+            </button>
+          )}
         </div>
 
       </div>
 
+      {/* Manual Install Guide Modal for iOS & Android */}
+      {showInstallGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#141822] border border-orange-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-orange-400" />
+                <h3 className="font-bold text-sm text-white">Panduan Pasang Aplikasi</h3>
+              </div>
+              <button
+                onClick={() => setShowInstallGuide(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-300">
+              <div className="bg-[#1b212f] p-3.5 rounded-2xl border border-white/5 space-y-1.5">
+                <p className="font-bold text-orange-400">Pengguna Android (Google Chrome):</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1 text-[11px]">
+                  <li>Tekan ikon <strong>tiga titik (⋮)</strong> di penjuru atas browser.</li>
+                  <li>Pilih <strong>"Install app"</strong> atau <strong>"Add to Home screen"</strong>.</li>
+                  <li>Tekan <strong>"Install"</strong> untuk simpan ke skrin utama telefon.</li>
+                </ol>
+              </div>
+
+              <div className="bg-[#1b212f] p-3.5 rounded-2xl border border-white/5 space-y-1.5">
+                <p className="font-bold text-orange-400">Pengguna iPhone / iOS (Safari):</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1 text-[11px]">
+                  <li>Tekan butang <strong>Share</strong> (ikon kotak & anak panah atas).</li>
+                  <li>Tatal ke bawah dan pilih <strong>"Add to Home Screen"</strong>.</li>
+                  <li>Tekan <strong>"Add"</strong> di penjuru atas kanan.</li>
+                </ol>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowInstallGuide(false)}
+              className="w-full py-2.5 bg-orange-500 text-white font-extrabold rounded-xl text-xs hover:bg-orange-600 transition-colors cursor-pointer"
+            >
+              Faham & Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Footer Branding */}
       <footer className="w-full max-w-md mx-auto text-center pt-3 border-t border-white/5 z-10">
         <p className="text-[10px] text-slate-500 font-medium">
-          AutoKira © Aidee Creatives • Hak Cipta Terpelihara
+          AutoKira Automotive Engine • Hak Cipta Terpelihara
         </p>
       </footer>
 

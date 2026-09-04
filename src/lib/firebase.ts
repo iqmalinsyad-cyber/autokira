@@ -5,6 +5,7 @@ import {
   signInWithPopup, 
   signInWithRedirect,
   getRedirectResult,
+  getAdditionalUserInfo,
   signOut as fbSignOut, 
   onAuthStateChanged,
   User
@@ -25,12 +26,19 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const loginWithGoogle = async (): Promise<{ user: any; isSimulated?: boolean }> => {
+export const loginWithGoogle = async (): Promise<{ user: any; isNewUser?: boolean; isSimulated?: boolean }> => {
   try {
     // Attempt standard Google Popup login
     const result = await signInWithPopup(auth, googleProvider);
     if (result && result.user) {
-      return { user: result.user };
+      let isNewUser = false;
+      try {
+        const additionalInfo = getAdditionalUserInfo(result);
+        isNewUser = Boolean(additionalInfo?.isNewUser);
+      } catch {
+        isNewUser = false;
+      }
+      return { user: result.user, isNewUser };
     }
   } catch (error: any) {
     console.warn("Google popup sign-in encountered an issue:", error?.code, error?.message);

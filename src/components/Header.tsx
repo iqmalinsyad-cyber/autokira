@@ -11,9 +11,11 @@ import {
   User, 
   ShieldCheck,
   Zap,
-  Heart
+  Heart,
+  Download
 } from 'lucide-react';
 import { Vehicle, UserProfile } from '../types';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface HeaderProps {
   vehicles: Vehicle[];
@@ -35,6 +37,14 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [engineState, setEngineState] = useState<'ON' | 'OFF'>('ON');
+  const { isInstallable, isInstalled, installPWA } = usePWAInstall();
+
+  const handleInstallClick = async () => {
+    const success = await installPWA();
+    if (!success) {
+      onOpenAuth();
+    }
+  };
 
   return (
     <header className="relative z-30 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 px-3.5 sm:px-5 bg-[#0d1017]/95 backdrop-blur-md border-b border-white/5 transition-all">
@@ -144,6 +154,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Notification & Google User Avatar */}
         <div className="flex items-center gap-2">
+          {!isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              title="Pasang Aplikasi (Install App)"
+              className="py-1.5 px-2.5 rounded-full bg-gradient-to-r from-orange-600/20 to-orange-500/20 border border-orange-500/40 text-orange-400 hover:text-white hover:bg-orange-500 hover:border-orange-500 text-xs font-extrabold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 animate-bounce" />
+              <span className="hidden xs:inline text-[11px]">Pasang App</span>
+            </button>
+          )}
+
           <button 
             onClick={onOpenAuth}
             className="relative w-10 h-10 rounded-full bg-[#181d26] border border-white/5 flex items-center justify-center text-slate-300 hover:text-white hover:border-orange-500/30 transition-all active:scale-95 overflow-hidden"
