@@ -16,6 +16,7 @@ import {
   FileText
 } from 'lucide-react';
 import { ExpenseRecord, ServiceRecord, MileageRecord, Vehicle } from '../types';
+import { PetrolBrandLogo } from './PetrolBrandLogo';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -27,7 +28,8 @@ interface PreviewModalProps {
   mileage: MileageRecord[];
   vehicles: Vehicle[];
   onOpenEdit: () => void;
-  onConfirmDelete: () => void;
+  onDelete?: () => void;
+  onConfirmDelete?: () => void;
 }
 
 export const PreviewModal: React.FC<PreviewModalProps> = ({
@@ -40,9 +42,18 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   mileage,
   vehicles,
   onOpenEdit,
+  onDelete,
   onConfirmDelete
 }) => {
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete();
+    } else if (onConfirmDelete) {
+      onConfirmDelete();
+    }
+  };
 
   if (!isOpen || !recordId || !type) return null;
 
@@ -54,6 +65,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   let details: { label: string; value: string; icon?: any }[] = [];
   let iconComp = Fuel;
   let iconBg = 'bg-emerald-500/10 text-emerald-400';
+  let fuelBrandName: string | null = null;
 
   if (type === 'exp') {
     const item = expenses.find(x => x.id === recordId);
@@ -62,6 +74,9 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     subtitle = item.tripType;
     amount = item.amount;
     receiptImg = item.receiptImage || null;
+    if (item.category === 'Minyak' && item.fuelBrand) {
+      fuelBrandName = item.fuelBrand;
+    }
 
     const d = new Date(item.timestamp);
     dateStr = `${d.toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })} • ${d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
@@ -81,7 +96,11 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
 
     details = [
       { label: 'Kategori', value: item.category },
+      ...(item.category === 'Minyak' && item.fuelBrand ? [{ label: 'Jenama Petrol', value: item.fuelBrand }] : []),
+      ...(item.category === 'Minyak' && item.liters && item.liters > 0 ? [{ label: 'Jumlah Liter', value: `${item.liters} Liter` }] : []),
+      ...(item.category === 'Minyak' && item.liters && item.amount ? [{ label: 'Kadar Seliter (Est.)', value: `RM ${(item.amount / item.liters).toFixed(2)} / L` }] : []),
       { label: 'Tujuan Perjalanan', value: item.tripType },
+      ...(item.notes ? [{ label: 'Catatan', value: item.notes }] : []),
       { label: 'Kenderaan', value: targetVeh ? `${targetVeh.plateNumber} (${targetVeh.nickName})` : 'Kenderaan Utama' },
       { label: 'Tarikh & Waktu', value: dateStr }
     ];
@@ -157,8 +176,14 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
               <X className="w-4 h-4" />
             </button>
 
-            <div className={`w-16 h-16 rounded-3xl mx-auto mb-3 flex items-center justify-center text-2xl shadow-lg ${iconBg}`}>
-              <Icon className="w-8 h-8" />
+            <div className={`w-16 h-16 rounded-3xl mx-auto mb-3 flex items-center justify-center text-2xl shadow-lg ${
+              fuelBrandName ? 'bg-white p-2.5 border border-white/20' : iconBg
+            }`}>
+              {fuelBrandName ? (
+                <PetrolBrandLogo brand={fuelBrandName} className="w-full h-full object-contain" />
+              ) : (
+                <Icon className="w-8 h-8" />
+              )}
             </div>
 
             <p className="text-xs font-bold text-orange-400 uppercase tracking-widest">{subtitle}</p>
@@ -211,9 +236,10 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           {/* Action Footer Buttons */}
           <div className="p-4 bg-[#181d28] border-t border-white/5 flex gap-3">
             <button
-              onClick={onConfirmDelete}
-              className="w-14 h-12 rounded-2xl bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 flex items-center justify-center transition-all active:scale-95"
-              title="Padam Rekod"
+              type="button"
+              onClick={handleDelete}
+              className="w-14 h-12 rounded-2xl bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Padam Rekod Ini Secara Kekal"
             >
               <Trash2 className="w-5 h-5" />
             </button>

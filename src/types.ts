@@ -8,6 +8,7 @@ export interface Vehicle {
   vin: string;
   currentOdometer: number;
   targetNextServiceKm?: number;
+  vehicleType?: 'car' | 'motorcycle';
   fuelType?: string;
   roadtaxExpiry?: string;
   insuranceCompany?: string;
@@ -28,12 +29,16 @@ export interface Vehicle {
   };
 }
 
+export type PetrolBrand = 'Petronas' | 'Shell' | 'BHPetrol' | 'Caltex' | 'Petron' | 'FIVE' | 'Buraq Oil' | string;
+
 export interface ExpenseRecord {
   id: string;
   vehicleId?: string;
   category: 'Minyak' | 'Tol' | 'Parking';
   tripType: string;
   amount: number;
+  liters?: number;
+  fuelBrand?: PetrolBrand;
   timestamp: number;
   receiptImage?: string | null;
   notes?: string;

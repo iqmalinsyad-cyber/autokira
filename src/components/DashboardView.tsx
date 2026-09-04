@@ -1,6 +1,7 @@
 import React from 'react';
 import { 
-  Gauge, 
+  Car, 
+  Bike,
   Fuel, 
   MapPin, 
   Battery, 
@@ -40,11 +41,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const targetService = vehicle?.targetNextServiceKm || (currentOdo + 500);
   const kmToService = Math.max(0, targetService - currentOdo);
 
+  // Current Month Tol calculation
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  const currentMonthExpenses = expenses.filter(item => {
+    // If vehicle filter applies
+    if (vehicle && item.vehicleId && item.vehicleId !== vehicle.id) {
+      return false;
+    }
+    const d = new Date(item.timestamp);
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  });
+
+  const totalTolThisMonth = currentMonthExpenses
+    .filter(x => x.category === 'Tol')
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
   const totalExpensesThisMonth = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const totalServicesCost = services.reduce((acc, curr) => acc + curr.amount, 0);
   const totalMileageAmount = mileage.reduce((acc, curr) => acc + curr.amount, 0);
 
-  const speedDisplay = vehicle?.telemetry?.speedKmh ?? 80.75;
   const fuelDisplay = vehicle?.telemetry?.fuelLevelLtrs ?? 31.45;
   const batteryDisplay = vehicle?.telemetry?.batteryVoltage ?? 12.0;
   const locationDisplay = vehicle?.telemetry?.locationName ?? "Lebuhraya PLUS / Bandar Baru Bangi";
@@ -69,24 +87,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* 4 Telemetry Grid Cards (Responsive 2x2 on mobile, 4-col on tablet/desktop) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {/* Card 1: Speed (Vibrant Orange Card) */}
-        <div className="bg-gradient-to-br from-[#ff5e00] to-[#ff7700] rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(255,94,0,0.3)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98">
+        {/* Card 1: Penggunaan Tol Bulan Semasa (Vibrant Orange Card) */}
+        <div 
+          onClick={() => onChangeTab('expenses')}
+          className="bg-gradient-to-br from-[#ff5e00] to-[#ff7700] rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-[0_12px_28px_rgba(255,94,0,0.3)] relative overflow-hidden flex flex-col justify-between min-h-[135px] sm:min-h-[150px] group transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+        >
           <div className="flex justify-between items-start">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Gauge className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <Car className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
+            <span className="text-[10px] font-bold bg-black/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-white">
+              Bulan Ini
+            </span>
           </div>
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">{speedDisplay}</span>
-              <span className="text-xs font-bold text-white/80">kmh</span>
+              <span className="text-xs font-bold text-white/80">RM</span>
+              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {totalTolThisMonth.toFixed(2)}
+              </span>
             </div>
-            <p className="text-xs font-semibold text-white/90 mt-0.5">Speed</p>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Penggunaan Tol</p>
           </div>
         </div>
 
         {/* Card 2: Est. Fuel Usage */}
-        <div className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98">
+        <div 
+          onClick={() => onChangeTab('expenses')}
+          className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+        >
           <div className="flex justify-between items-start">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#222834] flex items-center justify-center text-slate-300">
               <Fuel className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -102,7 +131,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 3: Total Distance / Odometer */}
-        <div className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98">
+        <div 
+          onClick={() => onChangeTab('services')}
+          className="bg-[#181d26] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg flex flex-col justify-between min-h-[135px] sm:min-h-[150px] transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer"
+        >
           <div className="flex justify-between items-start">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#222834] flex items-center justify-center text-slate-300">
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -170,19 +202,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </p>
           </div>
         </div>
-        <ArrowUpRight className="w-5 h-5 text-slate-400 group-hover:text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" />
+
+        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-orange-400 group-hover:translate-x-1 transition-all">
+          <ArrowUpRight className="w-4 h-4" />
+        </div>
       </div>
 
-      {/* Quick Action Button Pills */}
+      {/* Quick Action Buttons */}
       <div>
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 px-1">Tindakan Pantas</h3>
-        <div className="grid grid-cols-3 gap-2.5">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 px-1">
+          Tindakan Pantas
+        </h3>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <button
             onClick={() => onOpenAddModal('exp')}
             className="bg-[#181d26] hover:bg-[#202633] border border-white/5 hover:border-orange-500/30 rounded-2xl p-3 flex flex-col items-center gap-1.5 transition-all active:scale-95 group"
           >
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-              <Wallet className="w-4 h-4" />
+              <Fuel className="w-4 h-4" />
             </div>
             <span className="text-xs font-bold text-slate-200">Kos Harian</span>
           </button>
@@ -194,7 +231,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
               <Wrench className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-200">Servis Baru</span>
+            <span className="text-xs font-bold text-slate-200">Rekod Servis</span>
           </button>
 
           <button

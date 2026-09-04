@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   Car, 
+  Bike,
   Plus, 
   ChevronLeft, 
   ChevronRight, 
@@ -16,7 +17,8 @@ import {
   Calendar, 
   Hash, 
   Activity,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { Vehicle } from '../types';
 
@@ -46,6 +48,7 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentVehicle = vehicles.find(v => v.id === selectedVehicleId) || activeVehicle || vehicles[0];
+  const isMotorcycle = currentVehicle?.vehicleType === 'motorcycle';
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,24 +112,24 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-2xl bg-[#181d26] flex items-center justify-center text-orange-400">
-            <Car className="w-5 h-5" />
+            {isMotorcycle ? <Bike className="w-5 h-5" /> : <Car className="w-5 h-5" />}
           </div>
           <div>
-            <h2 className="text-base font-extrabold text-white">Vehicle Profile</h2>
-            <p className="text-[11px] text-slate-400">Pengurusan Profil & Spesifikasi Kereta</p>
+            <h2 className="text-base font-extrabold text-white">Profil Kenderaan</h2>
+            <p className="text-[11px] text-slate-400">Pengurusan Profil Kereta & Motorsikal</p>
           </div>
         </div>
 
         <button
           onClick={onOpenAddVehicle}
-          className="bg-orange-500/15 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-xs py-1.5 px-3 rounded-full flex items-center gap-1.5 transition-all active:scale-95"
+          className="bg-orange-500/15 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-xs py-1.5 px-3.5 rounded-full flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Tambah Kereta</span>
+          <span>Tambah Kenderaan</span>
         </button>
       </div>
 
-      {/* Hidden file input for car image upload */}
+      {/* Hidden file input for vehicle image upload */}
       <input
         type="file"
         ref={fileInputRef}
@@ -140,17 +143,21 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
         {vehicles.map((veh) => {
           const isViewing = veh.id === currentVehicle?.id;
           const isAct = veh.id === activeVehicle?.id;
+          const isBike = veh.vehicleType === 'motorcycle';
           return (
             <button
               key={veh.id}
               onClick={() => setSelectedVehicleId(veh.id)}
-              className={`shrink-0 px-3.5 py-2 rounded-2xl border text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`shrink-0 px-3.5 py-2 rounded-2xl border text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 isViewing
                   ? 'bg-[#1e2432] border-orange-500 text-white shadow-sm'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${isAct ? 'bg-emerald-400' : 'bg-slate-600'}`}></span>
+              <div className="flex items-center gap-1">
+                {isBike ? <Bike className="w-3.5 h-3.5 text-orange-400" /> : <Car className="w-3.5 h-3.5 text-orange-400" />}
+                <span className={`w-1.5 h-1.5 rounded-full ${isAct ? 'bg-emerald-400' : 'bg-slate-600'}`}></span>
+              </div>
               <span>{veh.plateNumber}</span>
               {isAct && <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.2 rounded font-extrabold">Aktif</span>}
             </button>
@@ -160,27 +167,35 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
 
       {currentVehicle ? (
         <>
-          {/* Main Car Showcase Card (Matching Reference Screenshot 2!) */}
+          {/* Main Vehicle Showcase Card */}
           <div className="relative rounded-3xl overflow-hidden bg-[#181d26] border border-white/5 shadow-2xl h-56 group">
             <img
-              src={currentVehicle.image || 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?q=80&w=1000&auto=format&fit=crop'}
+              src={currentVehicle.image || (isMotorcycle ? 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=1000&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?q=80&w=1000&auto=format&fit=crop')}
               alt={currentVehicle.plateNumber}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
+
+            {/* Top Vehicle Type Badge */}
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-xs font-bold text-slate-200">
+              {isMotorcycle ? <Bike className="w-3.5 h-3.5 text-orange-400" /> : <Car className="w-3.5 h-3.5 text-orange-400" />}
+              <span>{isMotorcycle ? 'Motorsikal' : 'Kereta'}</span>
+            </div>
 
             {/* Next/Previous Carousel Arrow Buttons */}
             {vehicles.length > 1 && (
               <>
                 <button
+                  type="button"
                   onClick={prevVehicle}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/60 transition-all"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/80 transition-all cursor-pointer z-10"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
+                  type="button"
                   onClick={nextVehicle}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/60 transition-all"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/80 transition-all cursor-pointer z-10"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -188,7 +203,7 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
             )}
 
             {/* Bottom Plate Badge overlay */}
-            <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
+            <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between z-10">
               <div>
                 <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
                   {currentVehicle.brand} {currentVehicle.year}
@@ -203,17 +218,22 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
 
               <div className="flex items-center gap-1.5">
                 <button
+                  type="button"
                   onClick={() => onOpenEditVehicle(currentVehicle)}
-                  className="w-8 h-8 rounded-xl bg-black/60 hover:bg-orange-500 backdrop-blur-md text-white flex items-center justify-center transition-all"
+                  className="w-9 h-9 rounded-xl bg-black/60 hover:bg-orange-500 backdrop-blur-md text-white flex items-center justify-center transition-all cursor-pointer shadow-sm"
                   title="Kemaskini Profil"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
                 {vehicles.length > 1 && (
                   <button
-                    onClick={() => onDeleteVehicle(currentVehicle)}
-                    className="w-8 h-8 rounded-xl bg-black/60 hover:bg-red-500 backdrop-blur-md text-white flex items-center justify-center transition-all"
-                    title="Padam Profil Kereta"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteVehicle(currentVehicle);
+                    }}
+                    className="w-9 h-9 rounded-xl bg-black/60 hover:bg-red-500 backdrop-blur-md text-red-400 hover:text-white border border-red-500/20 flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                    title="Padam Profil Kenderaan Ini Secara Kekal"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -222,11 +242,12 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons: [ Activate ] and [ Add Image ] (Exact match to Screenshot 2!) */}
+          {/* Action Buttons: [ Activate ] and [ Add Image ] */}
           <div className="grid grid-cols-2 gap-3">
             <button
+              type="button"
               onClick={() => onSelectVehicle(currentVehicle)}
-              className={`py-3.5 px-4 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-98 ${
+              className={`py-3.5 px-4 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer ${
                 activeVehicle?.id === currentVehicle.id
                   ? 'bg-emerald-600 text-white shadow-[0_4px_20px_rgba(16,185,129,0.3)]'
                   : 'bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white shadow-[0_4px_20px_rgba(249,115,22,0.4)]'
@@ -240,37 +261,40 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
               ) : (
                 <>
                   <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Activate</span>
+                  <span>Jadikan Aktif</span>
                 </>
               )}
             </button>
 
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="py-3.5 px-4 rounded-2xl bg-[#181d26] hover:bg-[#202634] border border-white/10 text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-98"
+              className="py-3.5 px-4 rounded-2xl bg-[#181d26] hover:bg-[#202634] border border-white/10 text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
             >
               <Camera className="w-4 h-4 text-slate-400" />
-              <span>Add Image</span>
+              <span>Tukar Gambar</span>
             </button>
           </div>
 
-          {/* Sub-Tab Navigation Pills (Exact match from screenshot 2!) */}
+          {/* Sub-Tab Navigation Pills */}
           <div className="flex items-center gap-2 pt-1">
             <button
+              type="button"
               onClick={() => setActiveSubTab('details')}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border ${
+              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
                 activeSubTab === 'details'
                   ? 'bg-[#1e2432] border-orange-500 text-white shadow-sm'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Car className="w-4 h-4 text-orange-400" />
-              <span>Vehicle Details</span>
+              {isMotorcycle ? <Bike className="w-4 h-4 text-orange-400" /> : <Car className="w-4 h-4 text-orange-400" />}
+              <span>Butiran Kenderaan</span>
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveSubTab('docs')}
-              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border ${
+              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border cursor-pointer ${
                 activeSubTab === 'docs'
                   ? 'bg-[#1e2432] border-orange-500 text-white'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
@@ -281,8 +305,9 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveSubTab('insurance')}
-              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border ${
+              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border cursor-pointer ${
                 activeSubTab === 'insurance'
                   ? 'bg-[#1e2432] border-orange-500 text-white'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
@@ -293,8 +318,9 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveSubTab('specs')}
-              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border ${
+              className={`w-11 h-10 rounded-xl font-bold flex items-center justify-center transition-all border cursor-pointer ${
                 activeSubTab === 'specs'
                   ? 'bg-[#1e2432] border-orange-500 text-white'
                   : 'bg-[#181d26] border-white/5 text-slate-400 hover:text-slate-200'
@@ -305,42 +331,50 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
             </button>
           </div>
 
-          {/* Key-Value Details List (Strictly matching reference screenshot 2!) */}
+          {/* Key-Value Details List */}
           <div className="bg-[#181d26] border border-white/5 rounded-3xl p-5 shadow-2xl space-y-3.5">
             {activeSubTab === 'details' && (
               <>
                 <div className="flex justify-between items-center py-1 text-xs">
-                  <span className="text-slate-400 font-medium">License Plate:</span>
+                  <span className="text-slate-400 font-medium">Jenis Kenderaan:</span>
+                  <span className="font-extrabold text-orange-400 flex items-center gap-1.5">
+                    {isMotorcycle ? <Bike className="w-3.5 h-3.5" /> : <Car className="w-3.5 h-3.5" />}
+                    {isMotorcycle ? 'Motorsikal (Motorcycle)' : 'Kereta (Car)'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
+                  <span className="text-slate-400 font-medium">No. Pendaftaran (Plat):</span>
                   <span className="font-extrabold text-white tracking-wider">{currentVehicle.plateNumber}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">Nick Name:</span>
+                  <span className="text-slate-400 font-medium">Nama Panggilan:</span>
                   <span className="font-bold text-slate-200">{currentVehicle.nickName || '-'}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">Type:</span>
+                  <span className="text-slate-400 font-medium">Jenama (Brand):</span>
                   <span className="font-bold text-slate-200">{currentVehicle.brand}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">Model:</span>
+                  <span className="text-slate-400 font-medium">Model & Varian:</span>
                   <span className="font-bold text-slate-200">{currentVehicle.model}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">Year:</span>
+                  <span className="text-slate-400 font-medium">Tahun Buatan:</span>
                   <span className="font-bold text-slate-200">{currentVehicle.year}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">VIN:</span>
+                  <span className="text-slate-400 font-medium">No. Chasis (VIN):</span>
                   <span className="font-mono text-xs text-orange-400 font-bold">{currentVehicle.vin || '2T1BU40E49C179680'}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">Odometer:</span>
+                  <span className="text-slate-400 font-medium">Odometer Semasa:</span>
                   <span className="font-extrabold text-white">{currentVehicle.currentOdometer.toLocaleString()} KM</span>
                 </div>
               </>
@@ -397,12 +431,13 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
         <div className="bg-[#181d26] border border-white/5 rounded-3xl p-8 text-center">
           <Car className="w-12 h-12 text-slate-500 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-white">Tiada Profil Kenderaan</h3>
-          <p className="text-xs text-slate-400 mt-1">Sila tambah profil kenderaan pertama anda untuk memulakan pengurusan servis berasingan.</p>
+          <p className="text-xs text-slate-400 mt-1">Sila tambah profil kenderaan pertama anda untuk memulakan pengurusan rekod berasingan.</p>
           <button
+            type="button"
             onClick={onOpenAddVehicle}
-            className="mt-4 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs py-2.5 px-5 rounded-2xl transition-all shadow-md"
+            className="mt-4 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs py-2.5 px-5 rounded-2xl transition-all shadow-md cursor-pointer"
           >
-            + Tambah Profil Kereta
+            + Tambah Kenderaan
           </button>
         </div>
       )}

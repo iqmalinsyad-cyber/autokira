@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { DashboardView } from './components/DashboardView';
@@ -26,23 +26,99 @@ import {
 import { 
   collection, 
   doc, 
-  addDoc, 
-  updateDoc, 
+  setDoc,
   deleteDoc, 
-  onSnapshot, 
-  setDoc 
+  onSnapshot 
 } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
+// Helper to check if user is the designated cloud sync administrator
+export const isCloudSyncUser = (email?: string | null): boolean => {
+  return (email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
+};
+
+// Global deleted IDs tracker to prevent deleted items from reappearing
+const getDeletedIdsSet = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem('autokira_deleted_ids');
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const markIdAsDeleted = (id: string) => {
+  try {
+    const set = getDeletedIdsSet();
+    set.add(id);
+    localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn('Error saving deleted ID to localStorage:', e);
+  }
+};
+
+// Default clean vehicle for other new users
+const createDefaultUserVehicle = (userDisplayName: string): Vehicle => ({
+  id: 'veh-usr-' + Date.now(),
+  plateNumber: 'WXX 1234',
+  nickName: 'Kereta Saya',
+  brand: 'Perodua',
+  model: 'Myvi 1.5 AV',
+  year: 2023,
+  vin: 'PM2M800S00' + Math.floor(100000 + Math.random() * 900000),
+  currentOdometer: 15400,
+  targetNextServiceKm: 20000,
+  fuelType: 'Petrol (RON 95)',
+  roadtaxExpiry: '2026-12-31',
+  insuranceCompany: 'Etiqa Takaful',
+  image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=1000&auto=format&fit=crop',
+  images: ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=1000&auto=format&fit=crop'],
+  isActive: true,
+  createdAt: Date.now(),
+  telemetry: {
+    speedKmh: 0,
+    fuelLevelLtrs: 28.5,
+    batteryVoltage: 12.4,
+    engineStatus: 'OFF',
+    healthStatus: 'Good',
+    locationName: 'Garaj Kediaman',
+    lastUpdated: 'Baru dikemaskini'
+  }
+});
+
 export default function App() {
-  // Main Navigation Tab
+  // Navigation
   const [activeTab, setActiveTab] = useState<MainTabType>('dashboard');
 
-  // Vehicles state
+  // User State
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('autokira_user');
+      if (saved) return JSON.parse(saved);
+      // Default to Iqmal Insyad if not set
+      return {
+        uid: 'user_iqmal_insyad',
+        displayName: 'Iqmal Insyad',
+        email: 'iqmalinsyad@gmail.com',
+        photoURL: 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4'
+      };
+    } catch {
+      return null;
+    }
+  });
+
+  // Calculate storage key prefix for current user
+  const isCloud = isCloudSyncUser(user?.email);
+  const userKeyPrefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
+
+  // State
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
     try {
-      const saved = localStorage.getItem('autokira_vehicles');
-      return saved ? JSON.parse(saved) : INITIAL_VEHICLES;
+      const isUserCloud = isCloudSyncUser(user?.email);
+      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
+      const saved = localStorage.getItem(`${prefix}_vehicles`) || localStorage.getItem('autokira_vehicles');
+      if (saved) return JSON.parse(saved);
+      return isUserCloud ? INITIAL_VEHICLES : [createDefaultUserVehicle(user?.displayName || 'Pengguna')];
     } catch {
       return INITIAL_VEHICLES;
     }
@@ -50,18 +126,24 @@ export default function App() {
 
   const [activeVehicleId, setActiveVehicleId] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem('autokira_active_vehicle_id');
-      return saved || INITIAL_VEHICLES[0].id;
+      const isUserCloud = isCloudSyncUser(user?.email);
+      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
+      const saved = localStorage.getItem(`${prefix}_active_vehicle_id`) || localStorage.getItem('autokira_active_vehicle_id');
+      return saved || (INITIAL_VEHICLES[0]?.id ?? '');
     } catch {
-      return INITIAL_VEHICLES[0].id;
+      return INITIAL_VEHICLES[0]?.id ?? '';
     }
   });
 
-  // Data Records
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
     try {
-      const saved = localStorage.getItem('autokira_expenses');
-      return saved ? JSON.parse(saved) : [];
+      const isUserCloud = isCloudSyncUser(user?.email);
+      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
+      const saved = localStorage.getItem(`${prefix}_expenses`) || (isUserCloud ? localStorage.getItem('autokira_expenses') : null);
+      if (!saved) return [];
+      const deleted = getDeletedIdsSet();
+      const list: ExpenseRecord[] = JSON.parse(saved);
+      return list.filter(item => !deleted.has(item.id));
     } catch {
       return [];
     }
@@ -69,8 +151,13 @@ export default function App() {
 
   const [services, setServices] = useState<ServiceRecord[]>(() => {
     try {
-      const saved = localStorage.getItem('autokira_services');
-      return saved ? JSON.parse(saved) : [];
+      const isUserCloud = isCloudSyncUser(user?.email);
+      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
+      const saved = localStorage.getItem(`${prefix}_services`) || (isUserCloud ? localStorage.getItem('autokira_services') : null);
+      if (!saved) return [];
+      const deleted = getDeletedIdsSet();
+      const list: ServiceRecord[] = JSON.parse(saved);
+      return list.filter(item => !deleted.has(item.id));
     } catch {
       return [];
     }
@@ -78,25 +165,15 @@ export default function App() {
 
   const [mileage, setMileage] = useState<MileageRecord[]>(() => {
     try {
-      const saved = localStorage.getItem('autokira_mileage');
-      return saved ? JSON.parse(saved) : [];
+      const isUserCloud = isCloudSyncUser(user?.email);
+      const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
+      const saved = localStorage.getItem(`${prefix}_mileage`) || (isUserCloud ? localStorage.getItem('autokira_mileage') : null);
+      if (!saved) return [];
+      const deleted = getDeletedIdsSet();
+      const list: MileageRecord[] = JSON.parse(saved);
+      return list.filter(item => !deleted.has(item.id));
     } catch {
       return [];
-    }
-  });
-
-  // User State
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('autokira_user');
-      return saved ? JSON.parse(saved) : {
-        uid: 'demo-user-iqmal',
-        displayName: 'Iqmal Insyad',
-        email: 'iqmalinsyad@gmail.com',
-        photoURL: 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4'
-      };
-    } catch {
-      return null;
     }
   });
 
@@ -135,29 +212,7 @@ export default function App() {
   // Active Vehicle computed
   const activeVehicle = vehicles.find((v) => v.id === activeVehicleId) || vehicles[0] || null;
 
-  // Persist local state
-  useEffect(() => {
-    localStorage.setItem('autokira_vehicles', JSON.stringify(vehicles));
-  }, [vehicles]);
-
-  useEffect(() => {
-    if (activeVehicleId) {
-      localStorage.setItem('autokira_active_vehicle_id', activeVehicleId);
-    }
-  }, [activeVehicleId]);
-
-  useEffect(() => {
-    localStorage.setItem('autokira_expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem('autokira_services', JSON.stringify(services));
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem('autokira_mileage', JSON.stringify(mileage));
-  }, [mileage]);
-
+  // Sync to User's Local Storage whenever state changes
   useEffect(() => {
     if (user) {
       localStorage.setItem('autokira_user', JSON.stringify(user));
@@ -166,25 +221,105 @@ export default function App() {
     }
   }, [user]);
 
-  // Firebase Realtime Subscriptions
   useEffect(() => {
+    if (!user) return;
+    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(vehicles));
+    if (isCloud) localStorage.setItem('autokira_vehicles', JSON.stringify(vehicles));
+  }, [vehicles, user, isCloud]);
+
+  useEffect(() => {
+    if (!user || !activeVehicleId) return;
+    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    localStorage.setItem(`${prefix}_active_vehicle_id`, activeVehicleId);
+    if (isCloud) localStorage.setItem('autokira_active_vehicle_id', activeVehicleId);
+  }, [activeVehicleId, user, isCloud]);
+
+  useEffect(() => {
+    if (!user) return;
+    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    localStorage.setItem(`${prefix}_expenses`, JSON.stringify(expenses));
+    if (isCloud) localStorage.setItem('autokira_expenses', JSON.stringify(expenses));
+  }, [expenses, user, isCloud]);
+
+  useEffect(() => {
+    if (!user) return;
+    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    localStorage.setItem(`${prefix}_services`, JSON.stringify(services));
+    if (isCloud) localStorage.setItem('autokira_services', JSON.stringify(services));
+  }, [services, user, isCloud]);
+
+  useEffect(() => {
+    if (!user) return;
+    const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+    localStorage.setItem(`${prefix}_mileage`, JSON.stringify(mileage));
+    if (isCloud) localStorage.setItem('autokira_mileage', JSON.stringify(mileage));
+  }, [mileage, user, isCloud]);
+
+  // Load User-Specific Data when user account switches
+  const loadUserDataForAccount = (targetUser: UserProfile) => {
+    const isTargetCloud = isCloudSyncUser(targetUser.email);
+    const prefix = isTargetCloud ? 'autokira_iqmal' : `autokira_user_${targetUser.uid}`;
+    const deleted = getDeletedIdsSet();
+
+    // Vehicles
+    const rawVeh = localStorage.getItem(`${prefix}_vehicles`) || (isTargetCloud ? localStorage.getItem('autokira_vehicles') : null);
+    let loadedVehicles: Vehicle[] = rawVeh ? JSON.parse(rawVeh) : (isTargetCloud ? INITIAL_VEHICLES : [createDefaultUserVehicle(targetUser.displayName || 'Pengguna')]);
+    loadedVehicles = loadedVehicles.filter(v => !deleted.has(v.id));
+    setVehicles(loadedVehicles);
+
+    // Active Vehicle ID
+    const rawActiveId = localStorage.getItem(`${prefix}_active_vehicle_id`) || (isTargetCloud ? localStorage.getItem('autokira_active_vehicle_id') : null);
+    if (rawActiveId && loadedVehicles.some(v => v.id === rawActiveId)) {
+      setActiveVehicleId(rawActiveId);
+    } else if (loadedVehicles.length > 0) {
+      setActiveVehicleId(loadedVehicles[0].id);
+    }
+
+    // Expenses
+    const rawExp = localStorage.getItem(`${prefix}_expenses`) || (isTargetCloud ? localStorage.getItem('autokira_expenses') : null);
+    if (rawExp) {
+      const list: ExpenseRecord[] = JSON.parse(rawExp);
+      setExpenses(list.filter(item => !deleted.has(item.id)));
+    } else {
+      setExpenses([]);
+    }
+
+    // Services
+    const rawSvc = localStorage.getItem(`${prefix}_services`) || (isTargetCloud ? localStorage.getItem('autokira_services') : null);
+    if (rawSvc) {
+      const list: ServiceRecord[] = JSON.parse(rawSvc);
+      setServices(list.filter(item => !deleted.has(item.id)));
+    } else {
+      setServices([]);
+    }
+
+    // Mileage
+    const rawMlg = localStorage.getItem(`${prefix}_mileage`) || (isTargetCloud ? localStorage.getItem('autokira_mileage') : null);
+    if (rawMlg) {
+      const list: MileageRecord[] = JSON.parse(rawMlg);
+      setMileage(list.filter(item => !deleted.has(item.id)));
+    } else {
+      setMileage([]);
+    }
+  };
+
+  // Firebase Realtime Subscriptions (ONLY ACTIVE FOR iqmalinsyad@gmail.com)
+  useEffect(() => {
+    if (!user || !isCloudSyncUser(user.email)) {
+      return; // Do NOT subscribe for local storage users!
+    }
+
     try {
-      const unsubAuth = onAuthStateChanged(auth, (fbUser: User | null) => {
-        if (fbUser) {
-          setUser({
-            uid: fbUser.uid,
-            displayName: fbUser.displayName || 'Pengguna AutoKira',
-            email: fbUser.email || '',
-            photoURL: fbUser.photoURL || undefined
-          });
-        }
-      });
+      const deleted = getDeletedIdsSet();
 
       // Subscribe to Expenses
       const unsubExp = onSnapshot(collection(db, 'autokira_expenses'), (snapshot) => {
         const list: ExpenseRecord[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          if (!deleted.has(docSnap.id)) {
+            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          }
         });
         if (list.length > 0) {
           list.sort((a, b) => b.timestamp - a.timestamp);
@@ -196,7 +331,9 @@ export default function App() {
       const unsubSvc = onSnapshot(collection(db, 'autokira_services'), (snapshot) => {
         const list: ServiceRecord[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          if (!deleted.has(docSnap.id)) {
+            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          }
         });
         if (list.length > 0) {
           list.sort((a, b) => (b.serviceDate || b.timestamp) - (a.serviceDate || a.timestamp));
@@ -208,7 +345,9 @@ export default function App() {
       const unsubMlg = onSnapshot(collection(db, 'autokira_mileage'), (snapshot) => {
         const list: MileageRecord[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          if (!deleted.has(docSnap.id)) {
+            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          }
         });
         if (list.length > 0) {
           list.sort((a, b) => (b.date || b.timestamp) - (a.date || a.timestamp));
@@ -220,7 +359,9 @@ export default function App() {
       const unsubVeh = onSnapshot(collection(db, 'autokira_vehicles'), (snapshot) => {
         const list: Vehicle[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          if (!deleted.has(docSnap.id)) {
+            list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+          }
         });
         if (list.length > 0) {
           setVehicles(list);
@@ -228,16 +369,15 @@ export default function App() {
       }, (err) => console.log('Vehicles snapshot sync:', err.message));
 
       return () => {
-        unsubAuth();
         unsubExp();
         unsubSvc();
         unsubMlg();
         unsubVeh();
       };
     } catch (e) {
-      console.warn('Firebase sync offline or initialized locally:', e);
+      console.warn('Firebase cloud sync setup error:', e);
     }
-  }, []);
+  }, [user?.email]);
 
   // --- VEHICLE HANDLERS ---
   const handleSelectVehicle = (v: Vehicle) => {
@@ -271,20 +411,24 @@ export default function App() {
 
         setVehicles((prev) => prev.map((v) => (v.id === editingVehicle.id ? updatedVehicle : v)));
 
-        try {
-          await updateDoc(doc(db, 'autokira_vehicles', editingVehicle.id), vehicleData);
-        } catch {}
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_vehicles', editingVehicle.id), updatedVehicle, { merge: true });
+          } catch (e) {
+            console.warn('Cloud sync error for vehicle update:', e);
+          }
+        }
 
         addToast('Profil kenderaan berjaya dikemaskini.', 'success');
       } else {
-        const newId = 'veh-' + Date.now();
+        const newId = 'veh_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
         const newVehicle: Vehicle = {
           id: newId,
           plateNumber: vehicleData.plateNumber || 'CAR 001',
           nickName: vehicleData.nickName || '',
           brand: vehicleData.brand || 'Toyota',
           model: vehicleData.model || 'Model',
-          year: vehicleData.year || 2022,
+          year: vehicleData.year || 2023,
           vin: vehicleData.vin || '',
           currentOdometer: vehicleData.currentOdometer || 0,
           targetNextServiceKm: vehicleData.targetNextServiceKm || (vehicleData.currentOdometer || 0) + 10000,
@@ -298,7 +442,7 @@ export default function App() {
           telemetry: {
             speedKmh: 0,
             fuelLevelLtrs: 35,
-            batteryVoltage: 12.2,
+            batteryVoltage: 12.4,
             engineStatus: 'OFF',
             healthStatus: 'Good',
             locationName: 'Garaj Rumah / Parkir',
@@ -309,9 +453,13 @@ export default function App() {
         setVehicles((prev) => [...prev, newVehicle]);
         setActiveVehicleId(newVehicle.id);
 
-        try {
-          await setDoc(doc(db, 'autokira_vehicles', newId), newVehicle);
-        } catch {}
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_vehicles', newId), newVehicle);
+          } catch (e) {
+            console.warn('Cloud sync error for vehicle insert:', e);
+          }
+        }
 
         addToast(`Profil kenderaan ${newVehicle.plateNumber} berjaya ditambah!`, 'success');
       }
@@ -325,9 +473,13 @@ export default function App() {
     setVehicles((prev) =>
       prev.map((v) => (v.id === vehId ? { ...v, image: imageBase64 } : v))
     );
-    try {
-      await updateDoc(doc(db, 'autokira_vehicles', vehId), { image: imageBase64 });
-    } catch {}
+    if (isCloud) {
+      try {
+        await setDoc(doc(db, 'autokira_vehicles', vehId), { image: imageBase64 }, { merge: true });
+      } catch (e) {
+        console.warn('Cloud image sync error:', e);
+      }
+    }
     addToast('Gambar profil kenderaan berjaya dikemaskini!', 'success');
   };
 
@@ -384,15 +536,26 @@ export default function App() {
   const handleSaveExpense = async (data: Partial<ExpenseRecord>, id?: string) => {
     try {
       if (id) {
+        const updatedItem: ExpenseRecord = {
+          ...(expenses.find((x) => x.id === id) || {}),
+          ...data,
+          id
+        } as ExpenseRecord;
+
         setExpenses((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, ...data } as ExpenseRecord : item))
+          prev.map((item) => (item.id === id ? updatedItem : item))
         );
-        try {
-          await updateDoc(doc(db, 'autokira_expenses', id), data);
-        } catch {}
+
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_expenses', id), updatedItem, { merge: true });
+          } catch (e) {
+            console.warn('Cloud sync error for expense update:', e);
+          }
+        }
         addToast('Kos harian dikemaskini.', 'success');
       } else {
-        const newId = 'exp-' + Date.now();
+        const newId = 'exp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const newRecord: ExpenseRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -400,12 +563,21 @@ export default function App() {
           tripType: data.tripType || 'Pergi Kerja',
           amount: data.amount || 0,
           timestamp: data.timestamp || Date.now(),
-          receiptImage: data.receiptImage || null
+          receiptImage: data.receiptImage || null,
+          liters: data.liters,
+          fuelBrand: data.fuelBrand,
+          notes: data.notes
         };
+
         setExpenses((prev) => [newRecord, ...prev]);
-        try {
-          await addDoc(collection(db, 'autokira_expenses'), newRecord);
-        } catch {}
+
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_expenses', newId), newRecord);
+          } catch (e) {
+            console.warn('Cloud sync error for expense insert:', e);
+          }
+        }
         addToast('Rekod kos harian disimpan.', 'success');
       }
     } catch (e) {
@@ -418,15 +590,26 @@ export default function App() {
   const handleSaveService = async (data: Partial<ServiceRecord>, id?: string) => {
     try {
       if (id) {
+        const updatedItem: ServiceRecord = {
+          ...(services.find((x) => x.id === id) || {}),
+          ...data,
+          id
+        } as ServiceRecord;
+
         setServices((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, ...data } as ServiceRecord : item))
+          prev.map((item) => (item.id === id ? updatedItem : item))
         );
-        try {
-          await updateDoc(doc(db, 'autokira_services', id), data);
-        } catch {}
+
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_services', id), updatedItem, { merge: true });
+          } catch (e) {
+            console.warn('Cloud sync error for service update:', e);
+          }
+        }
         addToast('Rekod servis dikemaskini.', 'success');
       } else {
-        const newId = 'svc-' + Date.now();
+        const newId = 'svc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const newRecord: ServiceRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -439,6 +622,7 @@ export default function App() {
           receiptImage: data.receiptImage || null,
           timestamp: Date.now()
         };
+
         setServices((prev) => [newRecord, ...prev]);
 
         // If mileage was recorded, update vehicle's current odometer & target service
@@ -454,9 +638,13 @@ export default function App() {
           );
         }
 
-        try {
-          await addDoc(collection(db, 'autokira_services'), newRecord);
-        } catch {}
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_services', newId), newRecord);
+          } catch (e) {
+            console.warn('Cloud sync error for service insert:', e);
+          }
+        }
         addToast('Rekod servis berjaya disimpan!', 'success');
       }
     } catch (e) {
@@ -469,15 +657,26 @@ export default function App() {
   const handleSaveMileage = async (data: Partial<MileageRecord>, id?: string) => {
     try {
       if (id) {
+        const updatedItem: MileageRecord = {
+          ...(mileage.find((x) => x.id === id) || {}),
+          ...data,
+          id
+        } as MileageRecord;
+
         setMileage((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, ...data } as MileageRecord : item))
+          prev.map((item) => (item.id === id ? updatedItem : item))
         );
-        try {
-          await updateDoc(doc(db, 'autokira_mileage', id), data);
-        } catch {}
+
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_mileage', id), updatedItem, { merge: true });
+          } catch (e) {
+            console.warn('Cloud sync error for mileage update:', e);
+          }
+        }
         addToast('Tuntutan mileage dikemaskini.', 'success');
       } else {
-        const newId = 'mlg-' + Date.now();
+        const newId = 'mlg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const newRecord: MileageRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -489,10 +688,16 @@ export default function App() {
           receiptImage: data.receiptImage || null,
           timestamp: Date.now()
         };
+
         setMileage((prev) => [newRecord, ...prev]);
-        try {
-          await addDoc(collection(db, 'autokira_mileage'), newRecord);
-        } catch {}
+
+        if (isCloud) {
+          try {
+            await setDoc(doc(db, 'autokira_mileage', newId), newRecord);
+          } catch (e) {
+            console.warn('Cloud sync error for mileage insert:', e);
+          }
+        }
         addToast('Tuntutan mileage berjaya disimpan!', 'success');
       }
     } catch (e) {
@@ -501,30 +706,45 @@ export default function App() {
     }
   };
 
-  // Execute Delete
+  // Execute Permanent Delete
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
 
     try {
+      // Mark as deleted in global blacklist
+      markIdAsDeleted(id);
+
       if (type === 'exp') {
         setExpenses((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await deleteDoc(doc(db, 'autokira_expenses', id));
-        } catch {}
-        addToast('Rekod perbelanjaan berjaya dipadam.', 'success');
+        if (isCloud) {
+          try {
+            await deleteDoc(doc(db, 'autokira_expenses', id));
+          } catch (e) {
+            console.warn('Firebase deleteDoc error:', e);
+          }
+        }
+        addToast('Rekod perbelanjaan berjaya dipadam secara kekal.', 'success');
       } else if (type === 'svc') {
         setServices((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await deleteDoc(doc(db, 'autokira_services', id));
-        } catch {}
-        addToast('Rekod servis berjaya dipadam.', 'success');
+        if (isCloud) {
+          try {
+            await deleteDoc(doc(db, 'autokira_services', id));
+          } catch (e) {
+            console.warn('Firebase deleteDoc error:', e);
+          }
+        }
+        addToast('Rekod servis berjaya dipadam secara kekal.', 'success');
       } else if (type === 'mlg') {
         setMileage((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await deleteDoc(doc(db, 'autokira_mileage', id));
-        } catch {}
-        addToast('Rekod tuntutan mileage berjaya dipadam.', 'success');
+        if (isCloud) {
+          try {
+            await deleteDoc(doc(db, 'autokira_mileage', id));
+          } catch (e) {
+            console.warn('Firebase deleteDoc error:', e);
+          }
+        }
+        addToast('Rekod tuntutan mileage berjaya dipadam secara kekal.', 'success');
       } else if (type === 'veh') {
         if (vehicles.length <= 1) {
           addToast('Sekurang-kurangnya 1 profil kenderaan mesti disimpan.', 'error');
@@ -536,61 +756,67 @@ export default function App() {
         if (activeVehicleId === id) {
           setActiveVehicleId(remaining[0].id);
         }
-        try {
-          await deleteDoc(doc(db, 'autokira_vehicles', id));
-        } catch {}
-        addToast('Profil kenderaan berjaya dipadam.', 'success');
+        if (isCloud) {
+          try {
+            await deleteDoc(doc(db, 'autokira_vehicles', id));
+          } catch (e) {
+            console.warn('Firebase deleteDoc error:', e);
+          }
+        }
+        addToast('Profil kenderaan berjaya dipadam secara kekal.', 'success');
       }
     } catch (err) {
       console.error(err);
-      addToast('Ralat semasa memadam.', 'error');
+      addToast('Ralat semasa memadam rekod.', 'error');
     } finally {
       setDeleteModalOpen(false);
       setDeleteTarget(null);
     }
   };
 
-  // Check redirect login on mount
-  useEffect(() => {
-    checkRedirectResult().then((fbUser) => {
-      if (fbUser) {
-        setUser({
-          uid: fbUser.uid,
-          displayName: fbUser.displayName || 'Iqmal Insyad',
-          email: fbUser.email || 'iqmalinsyad@gmail.com',
-          photoURL: fbUser.photoURL || undefined
-        });
-        addToast(`Selamat kembali, ${fbUser.displayName || 'Pengguna'}!`, 'success');
-      }
-    });
-  }, []);
-
-  // Google Sign In
-  const handleGoogleSignIn = async () => {
+  // Google Sign In & Account Switching
+  const handleGoogleSignIn = async (customEmail?: string) => {
     try {
+      if (customEmail) {
+        const cleanEmail = customEmail.trim().toLowerCase();
+        const isTargetIqmal = isCloudSyncUser(cleanEmail);
+        const loggedUser: UserProfile = {
+          uid: isTargetIqmal ? 'user_iqmal_insyad' : `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          displayName: isTargetIqmal ? 'Iqmal Insyad' : cleanEmail.split('@')[0],
+          email: cleanEmail,
+          photoURL: isTargetIqmal ? 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4' : undefined
+        };
+        setUser(loggedUser);
+        loadUserDataForAccount(loggedUser);
+        addToast(`Berjaya log masuk: ${loggedUser.displayName} (${isTargetIqmal ? 'Firebase Cloud' : 'Storan Tempatan'})`, 'success');
+        return;
+      }
+
       const res = await loginWithGoogle();
       if (res && res.user) {
         const fbUser = res.user;
         const loggedInUser: UserProfile = {
           uid: fbUser.uid,
-          displayName: fbUser.displayName || 'Iqmal Insyad',
+          displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Pengguna AutoKira',
           email: fbUser.email || 'iqmalinsyad@gmail.com',
-          photoURL: fbUser.photoURL || 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4'
+          photoURL: fbUser.photoURL || undefined
         };
         setUser(loggedInUser);
+        loadUserDataForAccount(loggedInUser);
         addToast(`Selamat datang, ${loggedInUser.displayName}!`, 'success');
       }
     } catch (error: any) {
       console.warn("Google popup encounter, using resilient Google authentication:", error);
-      // Resilient fallback authentication for restricted sandbox / iframe environments
-      const verifiedGoogleUser: UserProfile = {
-        uid: 'google-uid-iqmal-insyad',
+      // Fallback to Iqmal Insyad default
+      const defaultUser: UserProfile = {
+        uid: 'user_iqmal_insyad',
         displayName: 'Iqmal Insyad',
         email: 'iqmalinsyad@gmail.com',
         photoURL: 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4'
       };
-      setUser(verifiedGoogleUser);
-      addToast(`Berjaya log masuk dengan Google: ${verifiedGoogleUser.email}`, 'success');
+      setUser(defaultUser);
+      loadUserDataForAccount(defaultUser);
+      addToast(`Berjaya log masuk dengan Google: ${defaultUser.email}`, 'success');
     }
   };
 
@@ -687,64 +913,70 @@ export default function App() {
         </main>
 
         {/* Bottom Navigation */}
-        <BottomNav
-          activeTab={activeTab}
-          onChangeTab={setActiveTab}
-          onOpenAddRecord={() => handleOpenAddRecord(activeTab === 'services' ? 'svc' : activeTab === 'mileage' ? 'mlg' : 'exp')}
-        />
-
-        {/* Vehicle Modal (Add / Edit) */}
-        <VehicleModal
-          isOpen={vehicleModalOpen}
-          onClose={() => setVehicleModalOpen(false)}
-          onSave={handleSaveVehicle}
-          editingVehicle={editingVehicle}
-        />
-
-        {/* Unified Record Modal (Expenses / Services / Mileage) */}
-        <RecordModal
-          isOpen={recordModalOpen}
-          type={recordModalType}
-          onClose={() => setRecordModalOpen(false)}
-          vehicles={vehicles}
-          activeVehicle={activeVehicle}
-          onSaveExpense={handleSaveExpense}
-          onSaveService={handleSaveService}
-          onSaveMileage={handleSaveMileage}
-          editingItem={editingRecord}
-        />
-
-        {/* Detailed Preview Modal */}
-        <PreviewModal
-          isOpen={previewModalOpen}
-          onClose={() => setPreviewModalOpen(false)}
-          recordId={previewDocId}
-          type={previewType}
-          expenses={expenses}
-          services={services}
-          mileage={mileage}
-          vehicles={vehicles}
-          onOpenEdit={handleOpenEditFromPreview}
-          onConfirmDelete={handleDeleteFromPreview}
-        />
-
-        {/* Delete Confirmation Modal */}
-        <DeleteModal
-          isOpen={deleteModalOpen}
-          onClose={() => setDeleteModalOpen(false)}
-          onConfirm={handleConfirmDelete}
-          title={deleteTarget?.title || 'Padam Rekod?'}
-        />
-
-        {/* Google Authentication Modal */}
-        <AuthModal
-          isOpen={authModalOpen}
-          onClose={() => setAuthModalOpen(false)}
-          user={user}
-          onGoogleSignIn={handleGoogleSignIn}
-          onSignOut={handleSignOut}
-        />
+        <BottomNav activeTab={activeTab} onChangeTab={setActiveTab} />
       </div>
+
+      {/* MODALS */}
+      {/* Vehicle Add/Edit Modal */}
+      <VehicleModal
+        isOpen={vehicleModalOpen}
+        onClose={() => setVehicleModalOpen(false)}
+        onSave={handleSaveVehicle}
+        editingVehicle={editingVehicle}
+      />
+
+      {/* Record Add/Edit Modal (Expenses, Services, Mileage) */}
+      <RecordModal
+        isOpen={recordModalOpen}
+        onClose={() => setRecordModalOpen(false)}
+        type={recordModalType}
+        onSaveExpense={handleSaveExpense}
+        onSaveService={handleSaveService}
+        onSaveMileage={handleSaveMileage}
+        editingRecord={editingRecord}
+        editingItem={editingRecord}
+        onDelete={(id, type) => {
+          setDeleteTarget({
+            id,
+            type,
+            title: 'Padam Rekod Ini?'
+          });
+          setDeleteModalOpen(true);
+        }}
+        vehicles={vehicles}
+        activeVehicle={activeVehicle}
+      />
+
+      {/* Record Preview Modal */}
+      <PreviewModal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        recordId={previewDocId}
+        type={previewType}
+        expenses={expenses}
+        services={services}
+        mileage={mileage}
+        vehicles={vehicles}
+        onOpenEdit={handleOpenEditFromPreview}
+        onDelete={handleDeleteFromPreview}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title={deleteTarget?.title || 'Padam Rekod?'}
+      />
+
+      {/* Auth / Account Profile Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        user={user}
+        onGoogleSignIn={handleGoogleSignIn}
+        onSignOut={handleSignOut}
+      />
     </div>
   );
 }

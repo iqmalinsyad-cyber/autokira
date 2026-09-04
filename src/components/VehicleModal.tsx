@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, Camera, Check, AlertCircle } from 'lucide-react';
+import { X, Car, Bike, Camera, Check, Sparkles } from 'lucide-react';
 import { Vehicle } from '../types';
 
 interface VehicleModalProps {
@@ -9,12 +9,16 @@ interface VehicleModalProps {
   editingVehicle: Vehicle | null;
 }
 
+const CAR_BRANDS = ['Perodua', 'Proton', 'Toyota', 'Honda', 'Nissan', 'Mazda', 'Mercedes-Benz', 'BMW', 'Hyundai', 'BYD'];
+const MOTORCYCLE_BRANDS = ['Yamaha', 'Honda', 'Modenas', 'SYM', 'Kawasaki', 'Suzuki', 'Benelli', 'Vespa', 'KTM', 'BMW Motorrad'];
+
 export const VehicleModal: React.FC<VehicleModalProps> = ({
   isOpen,
   onClose,
   onSave,
   editingVehicle
 }) => {
+  const [vehicleType, setVehicleType] = useState<'car' | 'motorcycle'>('car');
   const [plateNumber, setPlateNumber] = useState('');
   const [nickName, setNickName] = useState('');
   const [brand, setBrand] = useState('Toyota');
@@ -30,19 +34,21 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
 
   useEffect(() => {
     if (editingVehicle) {
+      setVehicleType(editingVehicle.vehicleType || 'car');
       setPlateNumber(editingVehicle.plateNumber || '');
       setNickName(editingVehicle.nickName || '');
-      setBrand(editingVehicle.brand || 'Toyota');
+      setBrand(editingVehicle.brand || (editingVehicle.vehicleType === 'motorcycle' ? 'Yamaha' : 'Toyota'));
       setModel(editingVehicle.model || '');
       setYear(editingVehicle.year || new Date().getFullYear());
       setVin(editingVehicle.vin || '');
       setCurrentOdometer(editingVehicle.currentOdometer ? String(editingVehicle.currentOdometer) : '');
       setTargetNextServiceKm(editingVehicle.targetNextServiceKm ? String(editingVehicle.targetNextServiceKm) : '');
-      setFuelType(editingVehicle.fuelType || 'Petrol (RON 95/97)');
+      setFuelType(editingVehicle.fuelType || (editingVehicle.vehicleType === 'motorcycle' ? 'Petrol (RON 95)' : 'Petrol (RON 95/97)'));
       setRoadtaxExpiry(editingVehicle.roadtaxExpiry || '');
       setInsuranceCompany(editingVehicle.insuranceCompany || 'Etiqa Takaful');
       setImage(editingVehicle.image || '');
     } else {
+      setVehicleType('car');
       setPlateNumber('');
       setNickName('');
       setBrand('Toyota');
@@ -60,6 +66,25 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleTypeChange = (newType: 'car' | 'motorcycle') => {
+    setVehicleType(newType);
+    if (!editingVehicle) {
+      if (newType === 'motorcycle') {
+        if (brand === 'Toyota' || brand === 'Perodua' || brand === 'Proton') {
+          setBrand('Yamaha');
+        }
+        setFuelType('Petrol (RON 95)');
+        setImage('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=1000&auto=format&fit=crop');
+      } else {
+        if (brand === 'Yamaha' || brand === 'SYM' || brand === 'Modenas') {
+          setBrand('Toyota');
+        }
+        setFuelType('Petrol (RON 95/97)');
+        setImage('https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1000&auto=format&fit=crop');
+      }
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -76,9 +101,15 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
     if (!plateNumber.trim()) return;
 
     const odo = parseInt(currentOdometer) || 0;
-    const nextService = targetNextServiceKm ? parseInt(targetNextServiceKm) : odo + 10000;
+    const defaultNextInterval = vehicleType === 'motorcycle' ? 3000 : 10000;
+    const nextService = targetNextServiceKm ? parseInt(targetNextServiceKm) : (odo > 0 ? odo + defaultNextInterval : defaultNextInterval);
+
+    const defaultImg = vehicleType === 'motorcycle'
+      ? 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=1000&auto=format&fit=crop'
+      : 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1000&auto=format&fit=crop';
 
     onSave({
+      vehicleType,
       plateNumber: plateNumber.toUpperCase().trim(),
       nickName: nickName.trim(),
       brand: brand.trim(),
@@ -90,10 +121,12 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       fuelType,
       roadtaxExpiry,
       insuranceCompany,
-      image: image || 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1000&auto=format&fit=crop',
+      image: image || defaultImg,
     });
     onClose();
   };
+
+  const brandsList = vehicleType === 'motorcycle' ? MOTORCYCLE_BRANDS : CAR_BRANDS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -110,18 +143,18 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
         <div className="flex items-center justify-between p-5 pb-3 border-b border-white/5">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center">
-              <Car className="w-5 h-5" />
+              {vehicleType === 'motorcycle' ? <Bike className="w-5 h-5" /> : <Car className="w-5 h-5" />}
             </div>
             <div>
               <h3 className="text-base font-extrabold text-white">
-                {editingVehicle ? 'Kemaskini Profil Kereta' : 'Tambah Profil Kenderaan'}
+                {editingVehicle ? 'Kemaskini Profil Kenderaan' : 'Tambah Profil Kenderaan'}
               </h3>
-              <p className="text-[11px] text-slate-400">Asingkan rekod servis & perbelanjaan kereta</p>
+              <p className="text-[11px] text-slate-400">Pilih jenis kenderaan & rekod servis berkala</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-[#1e2432] text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full bg-[#1e2432] text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -129,16 +162,50 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+          {/* VEHICLE TYPE SELECTOR (KERETA vs MOTORSIKAL) */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Jenis Kenderaan *
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleTypeChange('car')}
+                className={`py-3 px-4 rounded-2xl border flex items-center justify-center gap-2.5 font-extrabold text-xs transition-all cursor-pointer ${
+                  vehicleType === 'car'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border-orange-400 shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/40'
+                    : 'bg-[#1b202c] text-slate-400 border-white/5 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                <Car className="w-4 h-4" />
+                <span>Kereta (Car)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange('motorcycle')}
+                className={`py-3 px-4 rounded-2xl border flex items-center justify-center gap-2.5 font-extrabold text-xs transition-all cursor-pointer ${
+                  vehicleType === 'motorcycle'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border-orange-400 shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/40'
+                    : 'bg-[#1b202c] text-slate-400 border-white/5 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                <Bike className="w-4 h-4" />
+                <span>Motorsikal (Bike)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Plate Number & Nickname */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                No. Plat Kereta *
+                No. Plat Kenderaan *
               </label>
               <input
                 type="text"
                 required
-                placeholder="Cth: ABC 834 ZA"
+                placeholder={vehicleType === 'motorcycle' ? "Cth: VDJ 1234" : "Cth: ABC 834 ZA"}
                 value={plateNumber}
                 onChange={(e) => setPlateNumber(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-extrabold text-white uppercase focus:outline-none focus:border-orange-500 placeholder-slate-500"
@@ -150,7 +217,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Cth: My Daily Camry"
+                placeholder={vehicleType === 'motorcycle' ? "Cth: Y15 King / Daily Bike" : "Cth: My Daily Camry"}
                 value={nickName}
                 onChange={(e) => setNickName(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
@@ -166,7 +233,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Cth: Toyota / Mercedes"
+                placeholder={vehicleType === 'motorcycle' ? "Cth: Yamaha / Honda" : "Cth: Toyota / Perodua"}
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
@@ -178,11 +245,34 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Cth: Camry 2.5V"
+                placeholder={vehicleType === 'motorcycle' ? "Cth: Y15ZR V2 / NVX 155" : "Cth: Camry 2.5V / Myvi 1.5"}
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
               />
+            </div>
+          </div>
+
+          {/* Quick Brand Pills */}
+          <div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+              Pilihan Pantas Jenama {vehicleType === 'motorcycle' ? 'Motorsikal' : 'Kereta'}:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {brandsList.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setBrand(b)}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                    brand.toLowerCase() === b.toLowerCase()
+                      ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                      : 'bg-[#1b202c] text-slate-400 border-white/5 hover:text-white hover:border-white/15'
+                  }`}
+                >
+                  {b}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -223,7 +313,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
               </label>
               <input
                 type="number"
-                placeholder="64520"
+                placeholder={vehicleType === 'motorcycle' ? "14200" : "64520"}
                 value={currentOdometer}
                 onChange={(e) => setCurrentOdometer(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
@@ -235,7 +325,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
               </label>
               <input
                 type="number"
-                placeholder="65000"
+                placeholder={vehicleType === 'motorcycle' ? "17000" : "75000"}
                 value={targetNextServiceKm}
                 onChange={(e) => setTargetNextServiceKm(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-bold text-orange-400 focus:outline-none focus:border-orange-500 placeholder-slate-500"
@@ -255,6 +345,8 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-orange-500"
               >
                 <option value="Petrol (RON 95/97)">Petrol (RON 95 / 97)</option>
+                <option value="Petrol (RON 95)">Petrol (RON 95)</option>
+                <option value="Petrol (RON 97)">Petrol (RON 97)</option>
                 <option value="Diesel Euro 5">Diesel Euro 5</option>
                 <option value="Hybrid / PHEV">Hybrid / PHEV</option>
                 <option value="Elektrik Penuh (EV)">Elektrik Penuh (EV)</option>
@@ -274,10 +366,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             </div>
           </div>
 
-          {/* Car Image Preview & Upload */}
+          {/* Vehicle Image Preview & Upload */}
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              Gambar Kereta
+              Gambar {vehicleType === 'motorcycle' ? 'Motorsikal' : 'Kereta'}
             </label>
             <div className="flex items-center gap-3">
               {image && (
@@ -287,7 +379,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
               )}
               <label className="flex-1 cursor-pointer bg-[#1b202c] hover:bg-[#232938] border border-dashed border-white/20 rounded-xl py-3 px-4 text-center text-xs font-bold text-slate-300 transition-colors flex items-center justify-center gap-2">
                 <Camera className="w-4 h-4 text-orange-400" />
-                <span>Pilih / Muat Naik Gambar Kereta</span>
+                <span>Muat Naik Gambar {vehicleType === 'motorcycle' ? 'Motorsikal' : 'Kereta'}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -303,16 +395,16 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-2xl bg-[#1e2432] text-slate-300 font-bold text-xs hover:bg-[#262e40] transition-colors"
+              className="flex-1 py-3 px-4 rounded-2xl bg-[#1e2432] text-slate-300 font-bold text-xs hover:bg-[#262e40] transition-colors cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="flex-2 py-3 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xs shadow-[0_4px_15px_rgba(249,115,22,0.4)] transition-all flex items-center justify-center gap-2"
+              className="flex-2 py-3 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xs shadow-[0_4px_15px_rgba(249,115,22,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
             >
               <Check className="w-4 h-4 stroke-[3]" />
-              <span>{editingVehicle ? 'Simpan Kemaskini' : 'Tambah Kereta'}</span>
+              <span>{editingVehicle ? 'Simpan Kemaskini' : `Tambah ${vehicleType === 'motorcycle' ? 'Motorsikal' : 'Kereta'}`}</span>
             </button>
           </div>
         </form>

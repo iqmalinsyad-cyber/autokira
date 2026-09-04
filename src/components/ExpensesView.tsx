@@ -9,9 +9,11 @@ import {
   Calendar, 
   Image as ImageIcon,
   ArrowUpDown,
-  CircleDollarSign
+  CircleDollarSign,
+  Gauge
 } from 'lucide-react';
 import { ExpenseRecord, Vehicle } from '../types';
+import { PetrolBrandLogo, PETROL_BRANDS_LIST } from './PetrolBrandLogo';
 
 interface ExpensesViewProps {
   expenses: ExpenseRecord[];
@@ -30,6 +32,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('all');
 
   // Extract unique months
   const monthsSet = new Set<string>();
@@ -56,19 +59,31 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     if (categoryFilter !== 'all' && item.category !== categoryFilter) {
       return false;
     }
+    // Filter by fuel station brand
+    if (categoryFilter === 'Minyak' && selectedBrandFilter !== 'all') {
+      if (!item.fuelBrand || !item.fuelBrand.toLowerCase().includes(selectedBrandFilter.toLowerCase())) {
+        return false;
+      }
+    }
     return true;
   });
 
   // Calculate totals
   let total = 0;
   let totalMinyak = 0;
+  let totalMinyakLiters = 0;
   let totalTol = 0;
   let totalParking = 0;
 
   filteredExpenses.forEach((item) => {
     const amount = Number(item.amount) || 0;
     total += amount;
-    if (item.category === 'Minyak') totalMinyak += amount;
+    if (item.category === 'Minyak') {
+      totalMinyak += amount;
+      if (item.liters && item.liters > 0) {
+        totalMinyakLiters += Number(item.liters);
+      }
+    }
     if (item.category === 'Tol') totalTol += amount;
     if (item.category === 'Parking') totalParking += amount;
   });
@@ -129,22 +144,33 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </h1>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+          <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between flex-wrap gap-2">
             <span className="text-xs text-slate-400">Rekod Terkumpul</span>
-            <span className="text-xs font-bold text-slate-200 bg-white/5 px-2.5 py-1 rounded-full">
-              {filteredExpenses.length} Transaksi
-            </span>
+            <div className="flex items-center gap-2">
+              {totalMinyakLiters > 0 && (
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                  {totalMinyakLiters.toFixed(2)} Liter Minyak
+                </span>
+              )}
+              <span className="text-xs font-bold text-slate-200 bg-white/5 px-2.5 py-1 rounded-full">
+                {filteredExpenses.length} Transaksi
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Category Breakdown Breakdown Cards */}
+      {/* Category Breakdown Cards */}
       <div className="space-y-3">
         {/* Minyak Card */}
         <div 
-          onClick={() => setCategoryFilter(categoryFilter === 'Minyak' ? 'all' : 'Minyak')}
+          onClick={() => {
+            const nextCat = categoryFilter === 'Minyak' ? 'all' : 'Minyak';
+            setCategoryFilter(nextCat);
+            if (nextCat === 'all') setSelectedBrandFilter('all');
+          }}
           className={`bg-[#181d26] border rounded-2xl p-4 transition-all cursor-pointer ${
-            categoryFilter === 'Minyak' ? 'border-emerald-500/50 bg-[#1c242e]' : 'border-white/5 hover:border-white/10'
+            categoryFilter === 'Minyak' ? 'border-emerald-500/50 bg-[#1c242e] shadow-lg shadow-emerald-950/20' : 'border-white/5 hover:border-white/10'
           }`}
         >
           <div className="flex justify-between items-center mb-2.5">
@@ -152,9 +178,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
                 <Fuel className="w-4 h-4" />
               </div>
-              <span className="font-bold text-sm text-slate-200">Minyak</span>
+              <div>
+                <span className="font-bold text-sm text-slate-200">Minyak Petrol / Diesel</span>
+                {totalMinyakLiters > 0 && (
+                  <p className="text-[10px] text-emerald-400 font-bold">
+                    Jumlah: {totalMinyakLiters.toFixed(2)} Liter
+                  </p>
+                )}
+              </div>
             </div>
-            <span className="font-extrabold text-white text-base">RM {totalMinyak.toFixed(2)}</span>
+            <div className="text-right">
+              <span className="font-extrabold text-white text-base">RM {totalMinyak.toFixed(2)}</span>
+            </div>
           </div>
           <div className="w-full bg-[#12161f] rounded-full h-2 overflow-hidden">
             <div 
@@ -163,16 +198,81 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             />
           </div>
           <div className="flex justify-between items-center mt-1.5 text-[10px] text-slate-400">
-            <span>{pctMinyak}% dari jumlah keseluruhan</span>
-            <span>{filteredExpenses.filter(x => x.category === 'Minyak').length} rekod</span>
+            <span>{pctMinyak}% dari kos keseluruhan</span>
+            <span>{filteredExpenses.filter(x => x.category === 'Minyak').length} kali isian minyak</span>
           </div>
         </div>
+
+        {/* Petrol Stations Filter Pill Bar (Visible when Minyak is active) */}
+        {categoryFilter === 'Minyak' && (
+          <div className="bg-[#141822] border border-white/5 rounded-2xl p-3 space-y-2 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-1">
+              <span className="text-emerald-400 uppercase tracking-wider text-[10px]">Tapis Mengikut Stesen Minyak</span>
+              {selectedBrandFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBrandFilter('all');
+                  }}
+                  className="text-orange-400 hover:underline text-[10px]"
+                >
+                  Papar Semua Stesen
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedBrandFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedBrandFilter === 'all'
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'bg-[#1b202c] text-slate-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Semua Stesen
+              </button>
+              {PETROL_BRANDS_LIST.map((b) => {
+                const count = expenses.filter(
+                  x => x.category === 'Minyak' && x.fuelBrand && x.fuelBrand.toLowerCase().includes(b.id.toLowerCase())
+                ).length;
+                const isSelected = selectedBrandFilter.toLowerCase() === b.id.toLowerCase();
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setSelectedBrandFilter(isSelected ? 'all' : b.id)}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 border transition-all cursor-pointer ${
+                      isSelected
+                        ? `${b.badgeBg} border-emerald-400 text-white shadow-md ring-1 ring-emerald-400/40`
+                        : 'bg-[#1b202c] border-white/5 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0">
+                      <PetrolBrandLogo brand={b.id} size="xs" />
+                    </div>
+                    <span>{b.shortName}</span>
+                    {count > 0 && (
+                      <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded-full">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Tol & Parking Grid */}
         <div className="grid grid-cols-2 gap-3">
           {/* Tol */}
           <div 
-            onClick={() => setCategoryFilter(categoryFilter === 'Tol' ? 'all' : 'Tol')}
+            onClick={() => {
+              setCategoryFilter(categoryFilter === 'Tol' ? 'all' : 'Tol');
+              setSelectedBrandFilter('all');
+            }}
             className={`bg-[#181d26] border rounded-2xl p-4 transition-all cursor-pointer ${
               categoryFilter === 'Tol' ? 'border-blue-500/50 bg-[#1a2230]' : 'border-white/5 hover:border-white/10'
             }`}
@@ -197,7 +297,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           {/* Parking */}
           <div 
-            onClick={() => setCategoryFilter(categoryFilter === 'Parking' ? 'all' : 'Parking')}
+            onClick={() => {
+              setCategoryFilter(categoryFilter === 'Parking' ? 'all' : 'Parking');
+              setSelectedBrandFilter('all');
+            }}
             className={`bg-[#181d26] border rounded-2xl p-4 transition-all cursor-pointer ${
               categoryFilter === 'Parking' ? 'border-amber-500/50 bg-[#252019]' : 'border-white/5 hover:border-white/10'
             }`}
@@ -225,10 +328,15 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       {/* Transaction History Section */}
       <div>
         <div className="flex items-center justify-between mb-3 px-1">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sejarah Transaksi Harian</h3>
-          {categoryFilter !== 'all' && (
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            {categoryFilter === 'Minyak' ? 'Sejarah Rekod Minyak Petrol / Diesel' : 'Sejarah Transaksi Harian'}
+          </h3>
+          {(categoryFilter !== 'all' || selectedBrandFilter !== 'all') && (
             <button 
-              onClick={() => setCategoryFilter('all')}
+              onClick={() => {
+                setCategoryFilter('all');
+                setSelectedBrandFilter('all');
+              }}
               className="text-[10px] text-orange-400 hover:underline font-bold"
             >
               Reset Filter
@@ -242,13 +350,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <Receipt className="w-6 h-6" />
             </div>
             <h4 className="text-sm font-bold text-slate-300">Tiada Rekod Dijumpai</h4>
-            <p className="text-xs text-slate-500 mt-1">Tekan butang tambah untuk merekod kos minyak, tol atau parking.</p>
+            <p className="text-xs text-slate-500 mt-1">Tekan butang tambah untuk merekod isian minyak, tol atau parking.</p>
             <button
               onClick={onOpenAddModal}
               className="mt-4 inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md"
             >
               <Plus className="w-4 h-4" />
-              <span>Tambah Rekod</span>
+              <span>Tambah Rekod Minyak</span>
             </button>
           </div>
         ) : (
@@ -268,6 +376,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 iconBg = 'bg-amber-500/10 text-amber-400';
               }
               const IconComp = icon;
+              const isFuel = item.category === 'Minyak';
 
               return (
                 <div
@@ -276,25 +385,55 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   className="bg-[#181d26] hover:bg-[#202633] border border-white/5 hover:border-orange-500/30 rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition-all active:scale-98 shadow-sm group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${iconBg}`}>
-                      <IconComp className="w-5 h-5" />
+                    {/* Brand Logo or Icon Container */}
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                      isFuel && item.fuelBrand ? 'bg-white p-1.5 border border-white/20' : iconBg
+                    }`}>
+                      {isFuel && item.fuelBrand ? (
+                        <PetrolBrandLogo brand={item.fuelBrand} size="md" className="w-full h-full object-contain" />
+                      ) : (
+                        <IconComp className="w-5 h-5" />
+                      )}
                     </div>
+
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-sm text-slate-100">{item.category}</h4>
+                      {/* Title & Brand Name */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-extrabold text-sm text-slate-100">
+                          {isFuel && item.fuelBrand ? item.fuelBrand : item.category}
+                        </h4>
                         <span className="text-[10px] bg-white/5 text-slate-300 font-semibold px-2 py-0.5 rounded-full">
                           {item.tripType}
                         </span>
+                        {/* Liters Tag */}
+                        {isFuel && item.liters && item.liters > 0 && (
+                          <span className="text-[10px] bg-emerald-500/15 text-emerald-400 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                            <Gauge className="w-3 h-3" />
+                            {item.liters} L
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {dateStr}, {timeStr}
+
+                      {/* Details & Timestamp */}
+                      <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span>{dateStr}, {timeStr}</span>
+                        {isFuel && item.liters && item.amount && (
+                          <span className="text-slate-500 font-medium">
+                            • RM {(Number(item.amount) / Number(item.liters)).toFixed(2)}/L
+                          </span>
+                        )}
+                        {item.notes && (
+                          <span className="text-slate-400 italic">
+                            • {item.notes}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
 
                   <div className="text-right flex items-center gap-2.5">
                     <div>
-                      <p className="font-extrabold text-white text-base">RM {Number(item.amount).toFixed(2)}</p>
+                      <p className="font-black text-white text-base tracking-tight">RM {Number(item.amount).toFixed(2)}</p>
                     </div>
                     {item.receiptImage && (
                       <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-orange-400 transition-colors">

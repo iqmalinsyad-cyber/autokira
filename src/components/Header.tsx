@@ -7,6 +7,7 @@ import {
   Check, 
   Plus, 
   Car, 
+  Bike,
   User, 
   ShieldCheck,
   Zap,
@@ -45,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="w-10 h-10 rounded-full bg-[#181d26] border border-white/10 flex items-center justify-center text-slate-300 hover:border-orange-500/50 transition-all active:scale-95 shadow-sm shrink-0 overflow-hidden p-1 relative group"
         >
           <img 
-            src="https://lh3.googleusercontent.com/d/1_01si5AB3HnnGTqYCzJibcuclz5emcyq" 
+            src="https://lh3.googleusercontent.com/d/1GIRN_j3cMTDYDhfKbNocxUb7_ZCO2uHq" 
             alt="AutoKira Logo" 
             className="w-full h-full object-contain rounded-full"
             referrerPolicy="no-referrer"
@@ -88,13 +89,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pilih Kenderaan</span>
                   <span className="text-[10px] bg-orange-500/10 text-orange-400 font-bold px-2 py-0.5 rounded-full">
-                    {vehicles.length} Kereta
+                    {vehicles.length} Kenderaan
                   </span>
                 </div>
 
                 <div className="max-h-56 overflow-y-auto py-1 space-y-1">
                   {vehicles.map((veh) => {
                     const isSelected = activeVehicle?.id === veh.id;
+                    const isBike = veh.vehicleType === 'motorcycle';
                     return (
                       <button
                         key={veh.id}
@@ -102,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onSelectVehicle(veh);
                           setDropdownOpen(false);
                         }}
-                        className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all ${
+                        className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
                           isSelected 
                             ? 'bg-orange-500/15 border border-orange-500/30 text-white' 
                             : 'hover:bg-white/5 text-slate-300'
@@ -110,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <div className="flex items-center gap-2.5 truncate">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-orange-500 text-white' : 'bg-[#222834] text-slate-400'}`}>
-                            <Car className="w-4 h-4" />
+                            {isBike ? <Bike className="w-4 h-4" /> : <Car className="w-4 h-4" />}
                           </div>
                           <div className="truncate">
                             <p className="text-xs font-bold text-white tracking-wide truncate">{veh.plateNumber}</p>
