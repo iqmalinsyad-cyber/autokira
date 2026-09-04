@@ -90,18 +90,18 @@ export default function App() {
   // Navigation
   const [activeTab, setActiveTab] = useState<MainTabType>('dashboard');
 
-  // User State
+  // User State - strictly respect logout state and require authentic sign in
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
+      const isLoggedOut = localStorage.getItem('autokira_logged_out');
+      if (isLoggedOut === 'true') {
+        return null;
+      }
       const saved = localStorage.getItem('autokira_user');
-      if (saved) return JSON.parse(saved);
-      // Default to Iqmal Insyad if not set
-      return {
-        uid: 'user_iqmal_insyad',
-        displayName: 'Iqmal Insyad',
-        email: 'iqmalinsyad@gmail.com',
-        photoURL: 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4'
-      };
+      if (saved) {
+        return JSON.parse(saved);
+      }
+      return null;
     } catch {
       return null;
     }
@@ -311,55 +311,51 @@ export default function App() {
     }
 
     try {
-      const deleted = getDeletedIdsSet();
-
       // Subscribe to Expenses
       const unsubExp = onSnapshot(collection(db, 'autokira_expenses'), (snapshot) => {
+        const freshDeleted = getDeletedIdsSet();
         const list: ExpenseRecord[] = [];
         snapshot.forEach((docSnap) => {
-          if (!deleted.has(docSnap.id)) {
+          if (!freshDeleted.has(docSnap.id)) {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
-        if (list.length > 0) {
-          list.sort((a, b) => b.timestamp - a.timestamp);
-          setExpenses(list);
-        }
+        list.sort((a, b) => b.timestamp - a.timestamp);
+        setExpenses(list);
       }, (err) => console.log('Expenses snapshot sync:', err.message));
 
       // Subscribe to Services
       const unsubSvc = onSnapshot(collection(db, 'autokira_services'), (snapshot) => {
+        const freshDeleted = getDeletedIdsSet();
         const list: ServiceRecord[] = [];
         snapshot.forEach((docSnap) => {
-          if (!deleted.has(docSnap.id)) {
+          if (!freshDeleted.has(docSnap.id)) {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
-        if (list.length > 0) {
-          list.sort((a, b) => (b.serviceDate || b.timestamp) - (a.serviceDate || a.timestamp));
-          setServices(list);
-        }
+        list.sort((a, b) => (b.serviceDate || b.timestamp) - (a.serviceDate || a.timestamp));
+        setServices(list);
       }, (err) => console.log('Services snapshot sync:', err.message));
 
       // Subscribe to Mileage
       const unsubMlg = onSnapshot(collection(db, 'autokira_mileage'), (snapshot) => {
+        const freshDeleted = getDeletedIdsSet();
         const list: MileageRecord[] = [];
         snapshot.forEach((docSnap) => {
-          if (!deleted.has(docSnap.id)) {
+          if (!freshDeleted.has(docSnap.id)) {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
-        if (list.length > 0) {
-          list.sort((a, b) => (b.date || b.timestamp) - (a.date || a.timestamp));
-          setMileage(list);
-        }
+        list.sort((a, b) => (b.date || b.timestamp) - (a.date || a.timestamp));
+        setMileage(list);
       }, (err) => console.log('Mileage snapshot sync:', err.message));
 
       // Subscribe to Vehicles
       const unsubVeh = onSnapshot(collection(db, 'autokira_vehicles'), (snapshot) => {
+        const freshDeleted = getDeletedIdsSet();
         const list: Vehicle[] = [];
         snapshot.forEach((docSnap) => {
-          if (!deleted.has(docSnap.id)) {
+          if (!freshDeleted.has(docSnap.id)) {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
@@ -712,11 +708,17 @@ export default function App() {
     const { id, type } = deleteTarget;
 
     try {
-      // Mark as deleted in global blacklist
+      // 1. Mark as deleted in global blacklist immediately
       markIdAsDeleted(id);
 
       if (type === 'exp') {
-        setExpenses((prev) => prev.filter((x) => x.id !== id));
+        const remaining = expenses.filter((x) => x.id !== id);
+        setExpenses(remaining);
+        if (user) {
+          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          localStorage.setItem(`${prefix}_expenses`, JSON.stringify(remaining));
+          if (isCloud) localStorage.setItem('autokira_expenses', JSON.stringify(remaining));
+        }
         if (isCloud) {
           try {
             await deleteDoc(doc(db, 'autokira_expenses', id));
@@ -726,7 +728,13 @@ export default function App() {
         }
         addToast('Rekod perbelanjaan berjaya dipadam secara kekal.', 'success');
       } else if (type === 'svc') {
-        setServices((prev) => prev.filter((x) => x.id !== id));
+        const remaining = services.filter((x) => x.id !== id);
+        setServices(remaining);
+        if (user) {
+          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          localStorage.setItem(`${prefix}_services`, JSON.stringify(remaining));
+          if (isCloud) localStorage.setItem('autokira_services', JSON.stringify(remaining));
+        }
         if (isCloud) {
           try {
             await deleteDoc(doc(db, 'autokira_services', id));
@@ -736,7 +744,13 @@ export default function App() {
         }
         addToast('Rekod servis berjaya dipadam secara kekal.', 'success');
       } else if (type === 'mlg') {
-        setMileage((prev) => prev.filter((x) => x.id !== id));
+        const remaining = mileage.filter((x) => x.id !== id);
+        setMileage(remaining);
+        if (user) {
+          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          localStorage.setItem(`${prefix}_mileage`, JSON.stringify(remaining));
+          if (isCloud) localStorage.setItem('autokira_mileage', JSON.stringify(remaining));
+        }
         if (isCloud) {
           try {
             await deleteDoc(doc(db, 'autokira_mileage', id));
@@ -755,6 +769,11 @@ export default function App() {
         setVehicles(remaining);
         if (activeVehicleId === id) {
           setActiveVehicleId(remaining[0].id);
+        }
+        if (user) {
+          const prefix = isCloud ? 'autokira_iqmal' : `autokira_user_${user.uid}`;
+          localStorage.setItem(`${prefix}_vehicles`, JSON.stringify(remaining));
+          if (isCloud) localStorage.setItem('autokira_vehicles', JSON.stringify(remaining));
         }
         if (isCloud) {
           try {
@@ -777,6 +796,8 @@ export default function App() {
   // Google Sign In & Account Switching
   const handleGoogleSignIn = async (customEmail?: string) => {
     try {
+      localStorage.removeItem('autokira_logged_out');
+
       if (customEmail) {
         const cleanEmail = customEmail.trim().toLowerCase();
         const isTargetIqmal = isCloudSyncUser(cleanEmail);
@@ -787,6 +808,7 @@ export default function App() {
           photoURL: isTargetIqmal ? 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4' : undefined
         };
         setUser(loggedUser);
+        localStorage.setItem('autokira_user', JSON.stringify(loggedUser));
         loadUserDataForAccount(loggedUser);
         addToast(`Berjaya log masuk: ${loggedUser.displayName} (${isTargetIqmal ? 'Firebase Cloud' : 'Storan Tempatan'})`, 'success');
         return;
@@ -802,28 +824,30 @@ export default function App() {
           photoURL: fbUser.photoURL || undefined
         };
         setUser(loggedInUser);
+        localStorage.setItem('autokira_user', JSON.stringify(loggedInUser));
         loadUserDataForAccount(loggedInUser);
         addToast(`Selamat datang, ${loggedInUser.displayName}!`, 'success');
       }
     } catch (error: any) {
-      console.warn("Google popup encounter, using resilient Google authentication:", error);
-      // Fallback to Iqmal Insyad default
-      const defaultUser: UserProfile = {
-        uid: 'user_iqmal_insyad',
-        displayName: 'Iqmal Insyad',
-        email: 'iqmalinsyad@gmail.com',
-        photoURL: 'https://lh3.googleusercontent.com/a/ACg8ocIS0e4v6vX4'
-      };
-      setUser(defaultUser);
-      loadUserDataForAccount(defaultUser);
-      addToast(`Berjaya log masuk dengan Google: ${defaultUser.email}`, 'success');
+      console.warn("Google popup encounter:", error);
+      // If error occurred (popup blocked or dismissed), show message and do NOT auto login
+      addToast('Log masuk Google dibatalkan atau terhalang. Sila cuba lagi.', 'error');
     }
   };
 
   const handleSignOut = async () => {
-    await logoutGoogle();
-    setUser(null);
+    try {
+      await logoutGoogle();
+    } catch (e) {
+      console.warn('Sign out warning:', e);
+    }
     localStorage.removeItem('autokira_user');
+    localStorage.setItem('autokira_logged_out', 'true');
+    setUser(null);
+    setVehicles([]);
+    setExpenses([]);
+    setServices([]);
+    setMileage([]);
     addToast('Akaun telah dilog keluar.', 'info');
   };
 
