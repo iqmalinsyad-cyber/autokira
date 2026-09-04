@@ -89,13 +89,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="mt-4 space-y-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-extrabold uppercase tracking-widest">
               <Zap className="w-3 h-3 fill-orange-400" />
-              <span>Automotive Engine OS</span>
+              <span>KIRA . REKOD . URUS</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Auto<span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-400">Kira</span>
             </h1>
             <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
-              Sistem Pengurusan Kos & Penyelenggaraan Kenderaan Pintar
+              Sistem Pengurusan Kos & Penyelenggaraan Kenderaan
             </p>
           </div>
         </div>
@@ -128,7 +128,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <Car className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-white truncate">Profil Garaj</p>
+                <p className="text-[11px] font-bold text-white truncate">Profil Kenderaan</p>
                 <p className="text-[9px] text-slate-400 truncate">Kereta & Motorsikal</p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <Navigation className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-white truncate">Tuntutan KM</p>
+                <p className="text-[11px] font-bold text-white truncate">Tuntutan Perjalanan</p>
                 <p className="text-[9px] text-slate-400 truncate">RM 0.70 / KM</p>
               </div>
             </div>
@@ -245,7 +245,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       {/* Footer Branding */}
       <footer className="w-full max-w-md mx-auto text-center pt-3 border-t border-white/5 z-10">
         <p className="text-[10px] text-slate-500 font-medium">
-          AutoKira Automotive Engine • Hak Cipta Terpelihara
+          AutoKira © Aidee Creatives • Hak Cipta Terpelihara
         </p>
       </footer>
 

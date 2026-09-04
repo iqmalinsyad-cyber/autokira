@@ -19,8 +19,8 @@ async function startServer() {
   // Endpoint to send Telegram notification when a user logs in (or first-time login)
   app.post("/api/telegram/notify-login", async (req, res) => {
     try {
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
-      const chatId = process.env.TELEGRAM_CHAT_ID;
+      const botToken = process.env.TELEGRAM_BOT_TOKEN || process.env.VITE_TELEGRAM_BOT_TOKEN;
+      const chatId = process.env.TELEGRAM_CHAT_ID || process.env.VITE_TELEGRAM_CHAT_ID;
 
       const { displayName, email, uid, isNewUser, userAgent, time } = req.body || {};
 

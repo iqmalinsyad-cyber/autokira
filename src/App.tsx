@@ -22,6 +22,7 @@ import {
   loginWithGoogle, 
   logoutGoogle 
 } from './lib/firebase';
+import { sendTelegramLoginNotification } from './lib/telegram';
 
 // Helper to derive safe storage prefix for any user
 const getStoragePrefix = (userProfile?: UserProfile | null): string => {
@@ -713,23 +714,15 @@ export default function App() {
         loadUserDataForAccount(loggedInUser);
         addToast(`Selamat datang, ${loggedInUser.displayName}!`, 'success');
 
-        // Dispatch Telegram bot notification safely via server-side endpoint
-        try {
-          fetch('/api/telegram/notify-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              displayName: loggedInUser.displayName,
-              email: loggedInUser.email,
-              uid: loggedInUser.uid,
-              isNewUser: isFirstTimeUser,
-              userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web App',
-              time: new Date().toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' })
-            })
-          }).catch((err) => console.log('Telegram notify error note:', err));
-        } catch (tgErr) {
-          console.log('Telegram dispatch error:', tgErr);
-        }
+        // Dispatch Telegram bot notification safely (Server / Cloudflare Function / Client fallback)
+        sendTelegramLoginNotification({
+          displayName: loggedInUser.displayName,
+          email: loggedInUser.email,
+          uid: loggedInUser.uid,
+          isNewUser: isFirstTimeUser,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web App',
+          time: new Date().toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' })
+        });
       }
     } catch (error: any) {
       console.warn("Google popup encounter:", error);

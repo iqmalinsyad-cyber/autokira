@@ -403,7 +403,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-colors">
               <Navigation className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-200">Tuntutan KM</span>
+            <span className="text-xs font-bold text-slate-200">Tuntutan Perjalanan</span>
           </button>
         </div>
       </div>
