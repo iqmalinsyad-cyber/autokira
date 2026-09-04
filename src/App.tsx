@@ -37,7 +37,7 @@ export const isCloudSyncUser = (email?: string | null): boolean => {
   return (email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
 };
 
-// Global deleted IDs tracker to prevent deleted items from reappearing
+// Global deleted IDs tracker to prevent deleted items from ever reappearing
 const getDeletedIdsSet = (): Set<string> => {
   try {
     const raw = localStorage.getItem('autokira_deleted_ids');
@@ -47,13 +47,44 @@ const getDeletedIdsSet = (): Set<string> => {
   }
 };
 
-const markIdAsDeleted = (id: string) => {
+const markIdAsDeleted = async (id: string, colName?: string, isCloudUser?: boolean) => {
   try {
     const set = getDeletedIdsSet();
     set.add(id);
     localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
+
+    if (isCloudUser) {
+      try {
+        await setDoc(doc(db, 'autokira_deleted_ids', id), {
+          id,
+          collection: colName || 'general',
+          deletedAt: Date.now()
+        });
+      } catch (e) {
+        console.warn('Firestore deleted_ids write error:', e);
+      }
+    }
   } catch (e) {
-    console.warn('Error saving deleted ID to localStorage:', e);
+    console.warn('Error saving deleted ID:', e);
+  }
+};
+
+const unmarkIdAsDeleted = async (id: string, isCloudUser?: boolean) => {
+  try {
+    const set = getDeletedIdsSet();
+    if (set.has(id)) {
+      set.delete(id);
+      localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
+    }
+    if (isCloudUser) {
+      try {
+        await deleteDoc(doc(db, 'autokira_deleted_ids', id));
+      } catch (e) {
+        console.warn('Firestore deleted_ids cleanup error:', e);
+      }
+    }
+  } catch (e) {
+    console.warn('Error unmarking deleted ID:', e);
   }
 };
 
@@ -117,8 +148,9 @@ export default function App() {
       const isUserCloud = isCloudSyncUser(user?.email);
       const prefix = isUserCloud ? 'autokira_iqmal' : `autokira_user_${user?.uid || 'guest'}`;
       const saved = localStorage.getItem(`${prefix}_vehicles`) || localStorage.getItem('autokira_vehicles');
-      if (saved) return JSON.parse(saved);
-      return isUserCloud ? INITIAL_VEHICLES : [createDefaultUserVehicle(user?.displayName || 'Pengguna')];
+      const deleted = getDeletedIdsSet();
+      const list: Vehicle[] = saved ? JSON.parse(saved) : (isUserCloud ? INITIAL_VEHICLES : [createDefaultUserVehicle(user?.displayName || 'Pengguna')]);
+      return list.filter(v => !deleted.has(v.id));
     } catch {
       return INITIAL_VEHICLES;
     }
@@ -311,17 +343,39 @@ export default function App() {
     }
 
     try {
+      // Subscribe to deleted IDs from Cloud Firestore to keep all devices synchronized
+      const unsubDeleted = onSnapshot(collection(db, 'autokira_deleted_ids'), (snapshot) => {
+        const set = getDeletedIdsSet();
+        let changed = false;
+        snapshot.forEach((docSnap) => {
+          if (!set.has(docSnap.id)) {
+            set.add(docSnap.id);
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem('autokira_deleted_ids', JSON.stringify(Array.from(set)));
+        }
+      }, (err) => console.log('Deleted IDs snapshot sync:', err.message));
+
       // Subscribe to Expenses
       const unsubExp = onSnapshot(collection(db, 'autokira_expenses'), (snapshot) => {
         const freshDeleted = getDeletedIdsSet();
         const list: ExpenseRecord[] = [];
         snapshot.forEach((docSnap) => {
-          if (!freshDeleted.has(docSnap.id)) {
+          if (freshDeleted.has(docSnap.id)) {
+            // Document was marked permanently deleted: purge from Firestore
+            deleteDoc(doc(db, 'autokira_expenses', docSnap.id)).catch(() => {});
+          } else {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
         list.sort((a, b) => b.timestamp - a.timestamp);
         setExpenses(list);
+        if (user) {
+          localStorage.setItem('autokira_iqmal_expenses', JSON.stringify(list));
+          localStorage.setItem('autokira_expenses', JSON.stringify(list));
+        }
       }, (err) => console.log('Expenses snapshot sync:', err.message));
 
       // Subscribe to Services
@@ -329,12 +383,19 @@ export default function App() {
         const freshDeleted = getDeletedIdsSet();
         const list: ServiceRecord[] = [];
         snapshot.forEach((docSnap) => {
-          if (!freshDeleted.has(docSnap.id)) {
+          if (freshDeleted.has(docSnap.id)) {
+            // Document was marked permanently deleted: purge from Firestore
+            deleteDoc(doc(db, 'autokira_services', docSnap.id)).catch(() => {});
+          } else {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
         list.sort((a, b) => (b.serviceDate || b.timestamp) - (a.serviceDate || a.timestamp));
         setServices(list);
+        if (user) {
+          localStorage.setItem('autokira_iqmal_services', JSON.stringify(list));
+          localStorage.setItem('autokira_services', JSON.stringify(list));
+        }
       }, (err) => console.log('Services snapshot sync:', err.message));
 
       // Subscribe to Mileage
@@ -342,12 +403,19 @@ export default function App() {
         const freshDeleted = getDeletedIdsSet();
         const list: MileageRecord[] = [];
         snapshot.forEach((docSnap) => {
-          if (!freshDeleted.has(docSnap.id)) {
+          if (freshDeleted.has(docSnap.id)) {
+            // Document was marked permanently deleted: purge from Firestore
+            deleteDoc(doc(db, 'autokira_mileage', docSnap.id)).catch(() => {});
+          } else {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
         list.sort((a, b) => (b.date || b.timestamp) - (a.date || a.timestamp));
         setMileage(list);
+        if (user) {
+          localStorage.setItem('autokira_iqmal_mileage', JSON.stringify(list));
+          localStorage.setItem('autokira_mileage', JSON.stringify(list));
+        }
       }, (err) => console.log('Mileage snapshot sync:', err.message));
 
       // Subscribe to Vehicles
@@ -355,16 +423,22 @@ export default function App() {
         const freshDeleted = getDeletedIdsSet();
         const list: Vehicle[] = [];
         snapshot.forEach((docSnap) => {
-          if (!freshDeleted.has(docSnap.id)) {
+          if (freshDeleted.has(docSnap.id)) {
+            // Document was marked permanently deleted: purge from Firestore
+            deleteDoc(doc(db, 'autokira_vehicles', docSnap.id)).catch(() => {});
+          } else {
             list.push({ id: docSnap.id, ...(docSnap.data() as any) });
           }
         });
-        if (list.length > 0) {
-          setVehicles(list);
+        setVehicles(list);
+        if (user) {
+          localStorage.setItem('autokira_iqmal_vehicles', JSON.stringify(list));
+          localStorage.setItem('autokira_vehicles', JSON.stringify(list));
         }
       }, (err) => console.log('Vehicles snapshot sync:', err.message));
 
       return () => {
+        unsubDeleted();
         unsubExp();
         unsubSvc();
         unsubMlg();
@@ -400,6 +474,7 @@ export default function App() {
   const handleSaveVehicle = async (vehicleData: Partial<Vehicle>) => {
     try {
       if (editingVehicle) {
+        await unmarkIdAsDeleted(editingVehicle.id, isCloud);
         const updatedVehicle: Vehicle = {
           ...editingVehicle,
           ...vehicleData
@@ -418,6 +493,7 @@ export default function App() {
         addToast('Profil kenderaan berjaya dikemaskini.', 'success');
       } else {
         const newId = 'veh_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+        await unmarkIdAsDeleted(newId, isCloud);
         const newVehicle: Vehicle = {
           id: newId,
           plateNumber: vehicleData.plateNumber || 'CAR 001',
@@ -532,6 +608,7 @@ export default function App() {
   const handleSaveExpense = async (data: Partial<ExpenseRecord>, id?: string) => {
     try {
       if (id) {
+        await unmarkIdAsDeleted(id, isCloud);
         const updatedItem: ExpenseRecord = {
           ...(expenses.find((x) => x.id === id) || {}),
           ...data,
@@ -552,6 +629,7 @@ export default function App() {
         addToast('Kos harian dikemaskini.', 'success');
       } else {
         const newId = 'exp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        await unmarkIdAsDeleted(newId, isCloud);
         const newRecord: ExpenseRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -586,6 +664,7 @@ export default function App() {
   const handleSaveService = async (data: Partial<ServiceRecord>, id?: string) => {
     try {
       if (id) {
+        await unmarkIdAsDeleted(id, isCloud);
         const updatedItem: ServiceRecord = {
           ...(services.find((x) => x.id === id) || {}),
           ...data,
@@ -606,6 +685,7 @@ export default function App() {
         addToast('Rekod servis dikemaskini.', 'success');
       } else {
         const newId = 'svc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        await unmarkIdAsDeleted(newId, isCloud);
         const newRecord: ServiceRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -653,6 +733,7 @@ export default function App() {
   const handleSaveMileage = async (data: Partial<MileageRecord>, id?: string) => {
     try {
       if (id) {
+        await unmarkIdAsDeleted(id, isCloud);
         const updatedItem: MileageRecord = {
           ...(mileage.find((x) => x.id === id) || {}),
           ...data,
@@ -673,6 +754,7 @@ export default function App() {
         addToast('Tuntutan mileage dikemaskini.', 'success');
       } else {
         const newId = 'mlg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        await unmarkIdAsDeleted(newId, isCloud);
         const newRecord: MileageRecord = {
           id: newId,
           vehicleId: data.vehicleId || activeVehicle?.id,
@@ -708,8 +790,9 @@ export default function App() {
     const { id, type } = deleteTarget;
 
     try {
-      // 1. Mark as deleted in global blacklist immediately
-      markIdAsDeleted(id);
+      // 1. Mark as permanently deleted (local + cloud)
+      const colName = type === 'exp' ? 'autokira_expenses' : type === 'svc' ? 'autokira_services' : type === 'mlg' ? 'autokira_mileage' : 'autokira_vehicles';
+      await markIdAsDeleted(id, colName, isCloud);
 
       if (type === 'exp') {
         const remaining = expenses.filter((x) => x.id !== id);
