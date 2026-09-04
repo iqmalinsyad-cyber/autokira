@@ -62,6 +62,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   // Service states
   const [svcLocation, setSvcLocation] = useState<string>('');
   const [svcMileage, setSvcMileage] = useState<string>('');
+  const [svcNextDate, setSvcNextDate] = useState<string>('');
+  const [svcNextMileage, setSvcNextMileage] = useState<string>('');
   const [svcNotes, setSvcNotes] = useState<string>('');
 
   // Mileage states
@@ -91,6 +93,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         setAmount(String(item.amount || ''));
         setSvcLocation(item.location || '');
         setSvcMileage(item.mileage ? String(item.mileage) : '');
+        setSvcNextDate(item.nextServiceDate || '');
+        setSvcNextMileage(item.nextServiceKm ? String(item.nextServiceKm) : '');
         setSvcNotes(item.notes || '');
         setReceiptImage(item.receiptImage || null);
         setSelectedVehicleId(item.vehicleId || activeVehicle?.id || '');
@@ -259,6 +263,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
 
       const dateTs = dateStr ? new Date(dateStr).getTime() : Date.now();
       const numMileage = svcMileage ? parseInt(svcMileage) : null;
+      const numNextMileage = svcNextMileage ? parseInt(svcNextMileage) : null;
 
       onSaveService({
         vehicleId: selectedVehicleId,
@@ -267,6 +272,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         location: svcLocation || 'Pusat Servis Rasmi',
         mileage: numMileage,
         amount: numAmount,
+        nextServiceDate: svcNextDate || null,
+        nextServiceKm: numNextMileage,
         notes: svcNotes,
         receiptImage: receiptImage,
         timestamp: currentEditingItem ? (currentEditingItem as ServiceRecord).timestamp : Date.now(),
@@ -549,7 +556,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Tarikh Servis
+                    Tarikh Servis *
                   </label>
                   <input
                     type="date"
@@ -561,15 +568,57 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Odometer (KM)
+                    Odometer Semasa (KM)
                   </label>
                   <input
                     type="number"
                     placeholder="64520"
                     value={svcMileage}
-                    onChange={(e) => setSvcMileage(e.target.value)}
+                    onChange={(e) => {
+                      setSvcMileage(e.target.value);
+                      const cur = parseInt(e.target.value);
+                      if (!isNaN(cur) && (!svcNextMileage || svcNextMileage === '0')) {
+                        const defaultInterval = activeVehicle?.vehicleType === 'motorcycle' ? 3000 : 10000;
+                        setSvcNextMileage(String(cur + defaultInterval));
+                      }
+                    }}
                     className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
                   />
+                </div>
+              </div>
+
+              {/* Next Service Date & Next Service Target Odometer */}
+              <div className="bg-[#181d28] border border-indigo-500/20 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Wrench className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">
+                    Jadual Servis Seterusnya (Akan Datang)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Tarikh Servis Seterusnya
+                    </label>
+                    <input
+                      type="date"
+                      value={svcNextDate}
+                      onChange={(e) => setSvcNextDate(e.target.value)}
+                      className="w-full bg-[#141822] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Odometer Seterusnya (KM)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Cth: 74520"
+                      value={svcNextMileage}
+                      onChange={(e) => setSvcNextMileage(e.target.value)}
+                      className="w-full bg-[#141822] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-indigo-300 focus:outline-none focus:border-indigo-400"
+                    />
+                  </div>
                 </div>
               </div>
 

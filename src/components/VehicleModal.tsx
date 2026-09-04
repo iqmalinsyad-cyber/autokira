@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, Bike, Camera, Check, Sparkles } from 'lucide-react';
+import { X, Car, Bike, Camera, Check, Plus, Trash2 } from 'lucide-react';
 import { Vehicle } from '../types';
 
 interface VehicleModalProps {
@@ -9,8 +9,8 @@ interface VehicleModalProps {
   editingVehicle: Vehicle | null;
 }
 
-const CAR_BRANDS = ['Perodua', 'Proton', 'Toyota', 'Honda', 'Nissan', 'Mazda', 'Mercedes-Benz', 'BMW', 'Hyundai', 'BYD'];
-const MOTORCYCLE_BRANDS = ['Yamaha', 'Honda', 'Modenas', 'SYM', 'Kawasaki', 'Suzuki', 'Benelli', 'Vespa', 'KTM', 'BMW Motorrad'];
+const DEFAULT_CAR_BRANDS = ['Perodua', 'Proton', 'Toyota', 'Honda', 'Nissan', 'Mazda', 'Mercedes-Benz', 'BMW', 'Hyundai', 'BYD', 'Chery', 'Tesla'];
+const DEFAULT_MOTORCYCLE_BRANDS = ['Yamaha', 'Honda', 'Modenas', 'SYM', 'Kawasaki', 'Suzuki', 'Benelli', 'Vespa', 'KTM', 'BMW Motorrad'];
 
 export const VehicleModal: React.FC<VehicleModalProps> = ({
   isOpen,
@@ -24,7 +24,6 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
   const [brand, setBrand] = useState('Toyota');
   const [model, setModel] = useState('');
   const [year, setYear] = useState<number>(new Date().getFullYear());
-  const [vin, setVin] = useState('');
   const [currentOdometer, setCurrentOdometer] = useState<string>('');
   const [targetNextServiceKm, setTargetNextServiceKm] = useState<string>('');
   const [fuelType, setFuelType] = useState('Petrol (RON 95/97)');
@@ -32,6 +31,28 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
   const [insuranceCompany, setInsuranceCompany] = useState('Etiqa Takaful');
   const [insuranceExpiry, setInsuranceExpiry] = useState('');
   const [image, setImage] = useState<string>('');
+
+  // Customizable Quick Brand lists stored in localStorage
+  const [carBrands, setCarBrands] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('autokira_custom_car_brands');
+      return saved ? JSON.parse(saved) : DEFAULT_CAR_BRANDS;
+    } catch {
+      return DEFAULT_CAR_BRANDS;
+    }
+  });
+
+  const [motorcycleBrands, setMotorcycleBrands] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('autokira_custom_motorcycle_brands');
+      return saved ? JSON.parse(saved) : DEFAULT_MOTORCYCLE_BRANDS;
+    } catch {
+      return DEFAULT_MOTORCYCLE_BRANDS;
+    }
+  });
+
+  const [isAddingNewBrand, setIsAddingNewBrand] = useState(false);
+  const [newBrandInput, setNewBrandInput] = useState('');
 
   useEffect(() => {
     if (editingVehicle) {
@@ -41,7 +62,6 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       setBrand(editingVehicle.brand || (editingVehicle.vehicleType === 'motorcycle' ? 'Yamaha' : 'Toyota'));
       setModel(editingVehicle.model || '');
       setYear(editingVehicle.year || new Date().getFullYear());
-      setVin(editingVehicle.vin || '');
       setCurrentOdometer(editingVehicle.currentOdometer ? String(editingVehicle.currentOdometer) : '');
       setTargetNextServiceKm(editingVehicle.targetNextServiceKm ? String(editingVehicle.targetNextServiceKm) : '');
       setFuelType(editingVehicle.fuelType || (editingVehicle.vehicleType === 'motorcycle' ? 'Petrol (RON 95)' : 'Petrol (RON 95/97)'));
@@ -56,7 +76,6 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       setBrand('Toyota');
       setModel('');
       setYear(new Date().getFullYear());
-      setVin('');
       setCurrentOdometer('');
       setTargetNextServiceKm('');
       setFuelType('Petrol (RON 95/97)');
@@ -74,16 +93,59 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
     if (!editingVehicle) {
       if (newType === 'motorcycle') {
         if (brand === 'Toyota' || brand === 'Perodua' || brand === 'Proton') {
-          setBrand('Yamaha');
+          setBrand(motorcycleBrands[0] || 'Yamaha');
         }
         setFuelType('Petrol (RON 95)');
         setImage('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=1000&auto=format&fit=crop');
       } else {
         if (brand === 'Yamaha' || brand === 'SYM' || brand === 'Modenas') {
-          setBrand('Toyota');
+          setBrand(carBrands[0] || 'Toyota');
         }
         setFuelType('Petrol (RON 95/97)');
         setImage('https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1000&auto=format&fit=crop');
+      }
+    }
+  };
+
+  const handleAddNewBrand = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanBrand = newBrandInput.trim();
+    if (!cleanBrand) return;
+
+    if (vehicleType === 'car') {
+      if (!carBrands.some(b => b.toLowerCase() === cleanBrand.toLowerCase())) {
+        const updated = [...carBrands, cleanBrand];
+        setCarBrands(updated);
+        localStorage.setItem('autokira_custom_car_brands', JSON.stringify(updated));
+      }
+    } else {
+      if (!motorcycleBrands.some(b => b.toLowerCase() === cleanBrand.toLowerCase())) {
+        const updated = [...motorcycleBrands, cleanBrand];
+        setMotorcycleBrands(updated);
+        localStorage.setItem('autokira_custom_motorcycle_brands', JSON.stringify(updated));
+      }
+    }
+
+    setBrand(cleanBrand);
+    setNewBrandInput('');
+    setIsAddingNewBrand(false);
+  };
+
+  const handleDeleteBrand = (brandToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (vehicleType === 'car') {
+      const updated = carBrands.filter(b => b !== brandToDelete);
+      setCarBrands(updated);
+      localStorage.setItem('autokira_custom_car_brands', JSON.stringify(updated));
+      if (brand === brandToDelete && updated.length > 0) {
+        setBrand(updated[0]);
+      }
+    } else {
+      const updated = motorcycleBrands.filter(b => b !== brandToDelete);
+      setMotorcycleBrands(updated);
+      localStorage.setItem('autokira_custom_motorcycle_brands', JSON.stringify(updated));
+      if (brand === brandToDelete && updated.length > 0) {
+        setBrand(updated[0]);
       }
     }
   };
@@ -118,7 +180,6 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       brand: brand.trim(),
       model: model.trim(),
       year: Number(year) || new Date().getFullYear(),
-      vin: vin.trim(),
       currentOdometer: odo,
       targetNextServiceKm: nextService,
       fuelType,
@@ -130,12 +191,12 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
     onClose();
   };
 
-  const brandsList = vehicleType === 'motorcycle' ? MOTORCYCLE_BRANDS : CAR_BRANDS;
+  const brandsList = vehicleType === 'motorcycle' ? motorcycleBrands : carBrands;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="w-full max-w-lg bg-[#141822] border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl max-h-[90dvh] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-0"
+        className="w-full max-w-lg bg-[#141822] border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile Pull Bar */}
@@ -257,30 +318,87 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             </div>
           </div>
 
-          {/* Quick Brand Pills */}
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-              Pilihan Pantas Jenama {vehicleType === 'motorcycle' ? 'Motorsikal' : 'Kereta'}:
-            </span>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {brandsList.map((b) => (
+          {/* Quick Brand Pills with Add / Delete Functionality */}
+          <div className="bg-[#181d26] border border-white/5 rounded-2xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Pilihan Pantas Jenama {vehicleType === 'motorcycle' ? 'Motorsikal' : 'Kereta'}:
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAddingNewBrand(!isAddingNewBrand)}
+                className="text-[10px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Tambah Jenama</span>
+              </button>
+            </div>
+
+            {/* Inline Add Brand Form */}
+            {isAddingNewBrand && (
+              <div className="flex items-center gap-2 mb-2.5 pt-1">
+                <input
+                  type="text"
+                  placeholder={`Nama jenama ${vehicleType === 'motorcycle' ? 'motorsikal' : 'kereta'} baru...`}
+                  value={newBrandInput}
+                  onChange={(e) => setNewBrandInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddNewBrand(e);
+                    }
+                  }}
+                  className="flex-1 bg-[#141822] border border-orange-500/40 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
+                />
                 <button
-                  key={b}
                   type="button"
-                  onClick={() => setBrand(b)}
-                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                    brand.toLowerCase() === b.toLowerCase()
-                      ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                      : 'bg-[#1b202c] text-slate-400 border-white/5 hover:text-white hover:border-white/15'
-                  }`}
+                  onClick={handleAddNewBrand}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
                 >
-                  {b}
+                  Tambah
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setIsAddingNewBrand(false)}
+                  className="bg-[#1e2432] text-slate-400 hover:text-white text-xs font-bold px-2 py-1.5 rounded-xl transition-all cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Brand Badges List with delete icon */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {brandsList.map((b) => {
+                const isSelected = brand.toLowerCase() === b.toLowerCase();
+                return (
+                  <div
+                    key={b}
+                    onClick={() => setBrand(b)}
+                    className={`text-[11px] font-bold pl-2.5 pr-1.5 py-1 rounded-lg border transition-all flex items-center gap-1 cursor-pointer group ${
+                      isSelected
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                        : 'bg-[#141822] text-slate-300 border-white/5 hover:text-white hover:border-white/15'
+                    }`}
+                  >
+                    <span>{b}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteBrand(b, e)}
+                      title={`Padam jenama ${b}`}
+                      className={`p-0.5 rounded transition-all opacity-40 hover:opacity-100 ${
+                        isSelected ? 'hover:bg-orange-600 text-white' : 'hover:bg-red-500/20 text-slate-400 hover:text-red-400'
+                      }`}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Year & VIN */}
+          {/* Year & Current Odometer */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -297,22 +415,6 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                No. Chasis (VIN)
-              </label>
-              <input
-                type="text"
-                placeholder="2T1BU40E49C179680"
-                value={vin}
-                onChange={(e) => setVin(e.target.value)}
-                className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-orange-400 focus:outline-none focus:border-orange-500 placeholder-slate-500"
-              />
-            </div>
-          </div>
-
-          {/* Current Odometer & Next Service Target */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                 Odometer Semasa (KM)
               </label>
               <input
@@ -323,18 +425,20 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Sasaran Servis (KM)
-              </label>
-              <input
-                type="number"
-                placeholder={vehicleType === 'motorcycle' ? "17000" : "75000"}
-                value={targetNextServiceKm}
-                onChange={(e) => setTargetNextServiceKm(e.target.value)}
-                className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-bold text-orange-400 focus:outline-none focus:border-orange-500 placeholder-slate-500"
-              />
-            </div>
+          </div>
+
+          {/* Next Service Target KM */}
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              Sasaran Servis Seterusnya (KM)
+            </label>
+            <input
+              type="number"
+              placeholder={vehicleType === 'motorcycle' ? "17000" : "75000"}
+              value={targetNextServiceKm}
+              onChange={(e) => setTargetNextServiceKm(e.target.value)}
+              className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-bold text-orange-400 focus:outline-none focus:border-orange-500 placeholder-slate-500"
+            />
           </div>
 
           {/* Fuel Type & Insurance Company */}

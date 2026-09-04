@@ -5,7 +5,7 @@ export interface Vehicle {
   brand: string;
   model: string;
   year: number;
-  vin: string;
+  vin?: string;
   currentOdometer: number;
   targetNextServiceKm?: number;
   vehicleType?: 'car' | 'motorcycle';
@@ -52,6 +52,8 @@ export interface ServiceRecord {
   location: string;
   mileage: number | null;
   amount: number;
+  nextServiceDate?: string | null;
+  nextServiceKm?: number | null;
   receiptImage?: string | null;
   timestamp: number;
   notes?: string;

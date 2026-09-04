@@ -70,6 +70,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
+      {/* Zero State Alert for New Users without vehicle */}
+      {!vehicle && (
+        <div 
+          onClick={() => onChangeTab('vehicles')}
+          className="bg-gradient-to-r from-orange-600/20 via-orange-500/15 to-amber-500/10 border border-orange-500/40 rounded-3xl p-5 cursor-pointer shadow-lg hover:border-orange-400 transition-all group"
+        >
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-orange-400 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/30 group-hover:scale-105 transition-transform">
+              <Plus className="w-6 h-6 stroke-[2.5]" />
+            </div>
+            <div className="flex-1">
+              <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider bg-orange-500/20 px-2 py-0.5 rounded-full inline-block mb-1">
+                Langkah Permulaan
+              </span>
+              <h4 className="text-sm font-extrabold text-white">Lengkapkan Profil Kenderaan Anda</h4>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                Semua data bermula dari 0. Klik di sini untuk menambah kenderaan pertama anda dan tetapkan odometer, tarikh roadtax & insurans.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Last Updated Header */}
       <div className="flex items-center justify-between pt-1 px-1">
         <div className="flex items-center gap-2">

@@ -242,11 +242,23 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-white/5 text-xs">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-white/5 text-xs flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {item.mileage && (
                         <span className="bg-[#12161f] border border-white/5 text-slate-300 font-bold px-2.5 py-0.5 rounded-lg text-[10px]">
                           {Number(item.mileage).toLocaleString()} KM
+                        </span>
+                      )}
+                      {item.nextServiceKm && (
+                        <span className="bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-bold px-2 py-0.5 rounded-lg text-[10px] flex items-center gap-1">
+                          <Wrench className="w-2.5 h-2.5 text-indigo-400" />
+                          <span>Seterusnya: {Number(item.nextServiceKm).toLocaleString()} KM</span>
+                        </span>
+                      )}
+                      {item.nextServiceDate && (
+                        <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold px-2 py-0.5 rounded-lg text-[10px] flex items-center gap-1">
+                          <Calendar className="w-2.5 h-2.5 text-purple-400" />
+                          <span>{new Date(item.nextServiceDate).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                         </span>
                       )}
                       <span className="text-[11px] text-slate-400 truncate max-w-[160px]">

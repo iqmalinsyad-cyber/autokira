@@ -11,6 +11,7 @@ import { RecordModal } from './components/RecordModal';
 import { PreviewModal } from './components/PreviewModal';
 import { DeleteModal } from './components/DeleteModal';
 import { AuthModal } from './components/AuthModal';
+import { TutorialModal } from './components/TutorialModal';
 import { LoginPage } from './components/LoginPage';
 import { Toast, ToastMessage } from './components/Toast';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
@@ -91,11 +92,11 @@ export default function App() {
                     (isIqmal ? localStorage.getItem('autokira_iqmal_vehicles') || localStorage.getItem('autokira_vehicles') : null);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
-      return isIqmal ? INITIAL_VEHICLES : [createDefaultUserVehicle(user?.displayName || 'Pengguna')];
+      return isIqmal ? INITIAL_VEHICLES : [];
     } catch {
-      return INITIAL_VEHICLES;
+      return [];
     }
   });
 
@@ -105,9 +106,9 @@ export default function App() {
       const isIqmal = (user?.email || '').toLowerCase().trim() === 'iqmalinsyad@gmail.com';
       const saved = localStorage.getItem(`${prefix}_active_vehicle_id`) || 
                     (isIqmal ? localStorage.getItem('autokira_iqmal_active_vehicle_id') || localStorage.getItem('autokira_active_vehicle_id') : null);
-      return saved || (INITIAL_VEHICLES[0]?.id ?? '');
+      return saved || (isIqmal ? (INITIAL_VEHICLES[0]?.id ?? '') : '');
     } catch {
-      return INITIAL_VEHICLES[0]?.id ?? '';
+      return '';
     }
   });
 
@@ -163,6 +164,17 @@ export default function App() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'exp' | 'svc' | 'mlg' | 'veh'; title?: string } | null>(null);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [tutorialModalOpen, setTutorialModalOpen] = useState(false);
+
+  // Auto-prompt tutorial for first-time users or users with no vehicles
+  useEffect(() => {
+    if (!user) return;
+    const prefix = getStoragePrefix(user);
+    const tutorialSeen = localStorage.getItem(`${prefix}_tutorial_seen`);
+    if (!tutorialSeen || vehicles.length === 0) {
+      setTutorialModalOpen(true);
+    }
+  }, [user, vehicles.length]);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -256,7 +268,10 @@ export default function App() {
       }
     }
     if (loadedVehicles.length === 0) {
-      loadedVehicles = isIqmal ? INITIAL_VEHICLES : [createDefaultUserVehicle(targetUser.displayName || 'Pengguna')];
+      loadedVehicles = isIqmal ? INITIAL_VEHICLES : [];
+      if (!isIqmal) {
+        setTutorialModalOpen(true);
+      }
     }
     setVehicles(loadedVehicles);
 
@@ -862,6 +877,28 @@ export default function App() {
         user={user}
         onGoogleSignIn={handleGoogleSignIn}
         onSignOut={handleSignOut}
+      />
+
+      {/* Tutorial / Onboarding Modal for New Users */}
+      <TutorialModal
+        isOpen={tutorialModalOpen}
+        userName={user?.displayName || 'Pengguna'}
+        onClose={() => {
+          setTutorialModalOpen(false);
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_tutorial_seen`, 'true');
+          }
+        }}
+        onStartSetup={() => {
+          setTutorialModalOpen(false);
+          if (user) {
+            const prefix = getStoragePrefix(user);
+            localStorage.setItem(`${prefix}_tutorial_seen`, 'true');
+          }
+          setActiveTab('vehicles');
+          handleOpenAddVehicle();
+        }}
       />
     </div>
   );

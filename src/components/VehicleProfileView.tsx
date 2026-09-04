@@ -369,11 +369,6 @@ export const VehicleProfileView: React.FC<VehicleProfileViewProps> = ({
                 </div>
 
                 <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
-                  <span className="text-slate-400 font-medium">No. Chasis (VIN):</span>
-                  <span className="font-mono text-xs text-orange-400 font-bold">{currentVehicle.vin || '2T1BU40E49C179680'}</span>
-                </div>
-
-                <div className="flex justify-between items-center py-1 text-xs border-t border-white/5">
                   <span className="text-slate-400 font-medium">Odometer Semasa:</span>
                   <span className="font-extrabold text-white">{currentVehicle.currentOdometer.toLocaleString()} KM</span>
                 </div>

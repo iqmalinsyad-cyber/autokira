@@ -125,6 +125,8 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       { label: 'Kenderaan', value: item.vehicle || (targetVeh ? `${targetVeh.plateNumber}` : '-') },
       { label: 'Pusat Servis / Bengkel', value: item.location || '-' },
       { label: 'Odometer Servis', value: item.mileage ? `${item.mileage.toLocaleString()} KM` : '-' },
+      ...(item.nextServiceKm ? [{ label: 'Sasaran Odometer Seterusnya', value: `${item.nextServiceKm.toLocaleString()} KM` }] : []),
+      ...(item.nextServiceDate ? [{ label: 'Tarikh Servis Seterusnya', value: new Date(item.nextServiceDate).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' }) }] : []),
       { label: 'Catatan / Servis', value: item.notes || 'Penyelenggaraan berkala' }
     ];
   } else if (type === 'mlg') {
