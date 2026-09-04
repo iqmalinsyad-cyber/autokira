@@ -208,6 +208,134 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* Roadtax & Insurance Expiry Status Section */}
+      <div>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Status Cukai Jalan & Insurans
+          </h3>
+          <button
+            onClick={() => onChangeTab('vehicles')}
+            className="text-[11px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1 cursor-pointer"
+          >
+            <span>Urus Profil</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {(() => {
+          const getExpiryInfo = (dateStr?: string) => {
+            if (!dateStr) return null;
+            const targetDate = new Date(dateStr);
+            if (isNaN(targetDate.getTime())) return null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            targetDate.setHours(0, 0, 0, 0);
+            const diffTime = targetDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const formatted = targetDate.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+            return { diffDays, formatted };
+          };
+
+          const roadtaxInfo = getExpiryInfo(vehicle?.roadtaxExpiry || '2026-11-20');
+          const insuranceInfo = getExpiryInfo(vehicle?.insuranceExpiry || '2026-11-20');
+
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+              {/* Roadtax Card */}
+              <div
+                onClick={() => onChangeTab('vehicles')}
+                className="bg-[#181d26] border border-white/5 hover:border-emerald-500/30 rounded-2xl p-3.5 shadow-lg flex items-center justify-between cursor-pointer transition-all group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-extrabold text-white">Cukai Jalan (Roadtax)</span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-300 mt-0.5 truncate">
+                      {roadtaxInfo ? roadtaxInfo.formatted : 'Belum Ditetapkan'}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {vehicle ? vehicle.plateNumber : 'Semua Kenderaan'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 pl-2">
+                  {roadtaxInfo ? (
+                    roadtaxInfo.diffDays < 0 ? (
+                      <span className="text-[10px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        Tamat Tempoh!
+                      </span>
+                    ) : roadtaxInfo.diffDays <= 30 ? (
+                      <span className="text-[10px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        Baki {roadtaxInfo.diffDays} Hari
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        Baki {roadtaxInfo.diffDays} Hari
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-1 rounded-full">
+                      + Tetapkan
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Insurance Card */}
+              <div
+                onClick={() => onChangeTab('vehicles')}
+                className="bg-[#181d26] border border-white/5 hover:border-orange-500/30 rounded-2xl p-3.5 shadow-lg flex items-center justify-between cursor-pointer transition-all group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-extrabold text-white">Polisi Insurans</span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-300 mt-0.5 truncate">
+                      {insuranceInfo ? insuranceInfo.formatted : 'Belum Ditetapkan'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {vehicle?.insuranceCompany || 'Etiqa Takaful'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 pl-2">
+                  {insuranceInfo ? (
+                    insuranceInfo.diffDays < 0 ? (
+                      <span className="text-[10px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        Tamat Tempoh!
+                      </span>
+                    ) : insuranceInfo.diffDays <= 30 ? (
+                      <span className="text-[10px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        Baki {insuranceInfo.diffDays} Hari
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        Baki {insuranceInfo.diffDays} Hari
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-1 rounded-full">
+                      + Tetapkan
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Quick Action Buttons */}
       <div>
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 px-1">

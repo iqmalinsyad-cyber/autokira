@@ -64,7 +64,9 @@ export interface MileageRecord {
   location: string;
   reason: string;
   km: number;
-  amount: number; // KM * RM0.70
+  amount: number; // KM * rate or manual amount
+  ratePerKm?: number; // Custom rate e.g. 0.70, 0.60
+  isAutoRate?: boolean; // True if calculated via rate, false if manual custom amount
   receiptImage?: string | null;
   timestamp: number;
 }

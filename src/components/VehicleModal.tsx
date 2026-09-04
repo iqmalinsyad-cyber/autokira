@@ -30,6 +30,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
   const [fuelType, setFuelType] = useState('Petrol (RON 95/97)');
   const [roadtaxExpiry, setRoadtaxExpiry] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('Etiqa Takaful');
+  const [insuranceExpiry, setInsuranceExpiry] = useState('');
   const [image, setImage] = useState<string>('');
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       setFuelType(editingVehicle.fuelType || (editingVehicle.vehicleType === 'motorcycle' ? 'Petrol (RON 95)' : 'Petrol (RON 95/97)'));
       setRoadtaxExpiry(editingVehicle.roadtaxExpiry || '');
       setInsuranceCompany(editingVehicle.insuranceCompany || 'Etiqa Takaful');
+      setInsuranceExpiry(editingVehicle.insuranceExpiry || '');
       setImage(editingVehicle.image || '');
     } else {
       setVehicleType('car');
@@ -60,6 +62,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       setFuelType('Petrol (RON 95/97)');
       setRoadtaxExpiry('');
       setInsuranceCompany('Etiqa Takaful');
+      setInsuranceExpiry('');
       setImage('https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1000&auto=format&fit=crop');
     }
   }, [editingVehicle, isOpen]);
@@ -119,8 +122,9 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
       currentOdometer: odo,
       targetNextServiceKm: nextService,
       fuelType,
-      roadtaxExpiry,
-      insuranceCompany,
+      roadtaxExpiry: roadtaxExpiry.trim(),
+      insuranceCompany: insuranceCompany.trim(),
+      insuranceExpiry: insuranceExpiry.trim(),
       image: image || defaultImg,
     });
     onClose();
@@ -333,7 +337,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             </div>
           </div>
 
-          {/* Fuel Type & Insurance */}
+          {/* Fuel Type & Insurance Company */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -363,6 +367,34 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
                 onChange={(e) => setInsuranceCompany(e.target.value)}
                 className="w-full bg-[#1b202c] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
               />
+            </div>
+          </div>
+
+          {/* Roadtax & Insurance Expiry Dates */}
+          <div className="grid grid-cols-2 gap-3 bg-[#181d26] border border-white/5 p-3.5 rounded-2xl">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Tamat Cukai Jalan (Roadtax)
+              </label>
+              <input
+                type="date"
+                value={roadtaxExpiry}
+                onChange={(e) => setRoadtaxExpiry(e.target.value)}
+                className="w-full bg-[#141822] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-orange-500"
+              />
+              <span className="text-[10px] text-slate-500 mt-1 block">Tarikh tamat cukai jalan</span>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Tamat Tempoh Insurans
+              </label>
+              <input
+                type="date"
+                value={insuranceExpiry}
+                onChange={(e) => setInsuranceExpiry(e.target.value)}
+                className="w-full bg-[#141822] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-orange-500"
+              />
+              <span className="text-[10px] text-slate-500 mt-1 block">Tarikh tamat polisi insurans</span>
             </div>
           </div>
 

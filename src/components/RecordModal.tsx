@@ -68,6 +68,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   const [mlgLocation, setMlgLocation] = useState<string>('');
   const [mlgReason, setMlgReason] = useState<string>('');
   const [mlgKm, setMlgKm] = useState<string>('');
+  const [isAutoRate, setIsAutoRate] = useState<boolean>(true);
+  const [ratePerKm, setRatePerKm] = useState<string>('0.70');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -102,6 +104,9 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         setMlgReason(item.reason || '');
         setMlgKm(String(item.km || ''));
         setAmount(String(item.amount || ''));
+        const auto = item.isAutoRate !== undefined ? item.isAutoRate : true;
+        setIsAutoRate(auto);
+        setRatePerKm(item.ratePerKm !== undefined ? String(item.ratePerKm) : '0.70');
         setReceiptImage(item.receiptImage || null);
         setSelectedVehicleId(item.vehicleId || activeVehicle?.id || '');
         if (item.date) {
@@ -128,6 +133,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
       setMlgLocation('');
       setMlgReason('Urusan Rasmi / Lawatan Tapak');
       setMlgKm('');
+      setIsAutoRate(true);
+      setRatePerKm('0.70');
     }
   }, [isOpen, type, editingItem, activeVehicle, vehicles]);
 
@@ -173,11 +180,36 @@ export const RecordModal: React.FC<RecordModalProps> = ({
 
   const handleKmChange = (val: string) => {
     setMlgKm(val);
-    const parsedKm = parseFloat(val);
-    if (!isNaN(parsedKm) && parsedKm > 0) {
-      setAmount((parsedKm * 0.70).toFixed(2));
-    } else {
-      setAmount('0.00');
+    if (isAutoRate) {
+      const parsedKm = parseFloat(val);
+      const parsedRate = parseFloat(ratePerKm) || 0.70;
+      if (!isNaN(parsedKm) && parsedKm > 0) {
+        setAmount((parsedKm * parsedRate).toFixed(2));
+      } else {
+        setAmount('0.00');
+      }
+    }
+  };
+
+  const handleRateChange = (val: string) => {
+    setRatePerKm(val);
+    if (isAutoRate) {
+      const parsedKm = parseFloat(mlgKm);
+      const parsedRate = parseFloat(val);
+      if (!isNaN(parsedKm) && parsedKm > 0 && !isNaN(parsedRate) && parsedRate > 0) {
+        setAmount((parsedKm * parsedRate).toFixed(2));
+      }
+    }
+  };
+
+  const handleToggleAutoRate = (auto: boolean) => {
+    setIsAutoRate(auto);
+    if (auto) {
+      const parsedKm = parseFloat(mlgKm);
+      const parsedRate = parseFloat(ratePerKm) || 0.70;
+      if (!isNaN(parsedKm) && parsedKm > 0) {
+        setAmount((parsedKm * parsedRate).toFixed(2));
+      }
     }
   };
 
@@ -242,7 +274,12 @@ export const RecordModal: React.FC<RecordModalProps> = ({
     } else if (type === 'mlg') {
       const numKm = parseFloat(mlgKm);
       if (isNaN(numKm) || numKm <= 0) return;
-      const numAmount = parseFloat(amount) || (numKm * 0.70);
+      
+      const parsedRate = parseFloat(ratePerKm) || 0.70;
+      let numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        numAmount = numKm * parsedRate;
+      }
 
       const dateTs = dateStr ? new Date(dateStr).getTime() : Date.now();
 
@@ -253,6 +290,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         reason: mlgReason || 'Perjalanan Rasmi',
         km: numKm,
         amount: numAmount,
+        ratePerKm: parsedRate,
+        isAutoRate: isAutoRate,
         receiptImage: receiptImage,
         timestamp: currentEditingItem ? (currentEditingItem as MileageRecord).timestamp : Date.now(),
       }, currentEditingItem?.id);
@@ -638,17 +677,121 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                 />
               </div>
 
-              {/* Auto Claim Calculation Card */}
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-3.5 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Jumlah Tuntutan Auto</span>
-                  <p className="text-[10px] text-slate-400">Kadar: RM 0.70 / 1 KM</p>
-                </div>
-                <div className="flex items-baseline gap-1 text-rose-400">
-                  <span className="text-sm font-bold">RM</span>
-                  <span className="text-2xl font-extrabold tracking-tight">{amount || '0.00'}</span>
+              {/* Rate Mode Selector (Auto Calculation vs Manual Input) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Pilihan Pengiraan Kadar Tuntutan
+                </label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-[#1b202c] border border-white/5 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAutoRate(true)}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isAutoRate
+                        ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/25'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>⚡ Kadar Automatik</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAutoRate(false)}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      !isAutoRate
+                        ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/25'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>✏️ Tetap Manual</span>
+                  </button>
                 </div>
               </div>
+
+              {isAutoRate ? (
+                /* Auto Rate Calculation Block with editable rate & presets */
+                <div className="space-y-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-3.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-extrabold text-rose-400">Kadar Tuntutan (RM / KM)</span>
+                      <p className="text-[10px] text-slate-400">Ubah kadar mengikut keperluan anda</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-[#141822] border border-rose-500/30 rounded-xl px-2.5 py-1">
+                      <span className="text-xs font-bold text-slate-400">RM</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={ratePerKm}
+                        onChange={(e) => handleRateChange(e.target.value)}
+                        className="w-16 bg-transparent text-sm font-extrabold text-rose-400 focus:outline-none text-right"
+                      />
+                      <span className="text-[10px] text-slate-400">/KM</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Rate Buttons */}
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Pilihan Pantas Kadar:
+                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {['0.50', '0.60', '0.70', '0.80', '0.90', '1.00'].map((presetRate) => (
+                        <button
+                          key={presetRate}
+                          type="button"
+                          onClick={() => handleRateChange(presetRate)}
+                          className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                            ratePerKm === presetRate
+                              ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                              : 'bg-[#1b202c] text-slate-300 border-white/5 hover:border-rose-500/30'
+                          }`}
+                        >
+                          RM {presetRate}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Total Calculated Amount Display */}
+                  <div className="pt-2 border-t border-rose-500/20 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Jumlah Tuntutan Terkalkulasi</span>
+                      <p className="text-[10px] text-slate-400">
+                        {mlgKm || '0'} KM × RM {ratePerKm || '0.70'}
+                      </p>
+                    </div>
+                    <div className="flex items-baseline gap-1 text-rose-400">
+                      <span className="text-xs font-bold">RM</span>
+                      <span className="text-2xl font-extrabold tracking-tight">{amount || '0.00'}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Manual Amount Input Block */
+                <div className="bg-[#1b202c] border border-white/10 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200 uppercase tracking-wider">
+                        Jumlah Tuntutan Sendiri (RM) *
+                      </label>
+                      <p className="text-[10px] text-slate-400">Tetapkan amaun terus tanpa formula kadar</p>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-extrabold text-slate-400">RM</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full bg-[#141822] border border-white/10 rounded-xl pl-11 pr-4 py-2.5 text-base font-extrabold text-white focus:outline-none focus:border-rose-500 placeholder-slate-500"
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 

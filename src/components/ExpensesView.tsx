@@ -10,10 +10,12 @@ import {
   Image as ImageIcon,
   ArrowUpDown,
   CircleDollarSign,
-  Gauge
+  Gauge,
+  Share2
 } from 'lucide-react';
 import { ExpenseRecord, Vehicle } from '../types';
 import { PetrolBrandLogo, PETROL_BRANDS_LIST } from './PetrolBrandLogo';
+import { ShareModal } from './ShareModal';
 
 interface ExpensesViewProps {
   expenses: ExpenseRecord[];
@@ -33,6 +35,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('all');
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Extract unique months
   const monthsSet = new Set<string>();
@@ -103,26 +106,38 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           </p>
         </div>
 
-        {/* Month Dropdown */}
-        <div className="relative">
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="appearance-none bg-[#181d26] border border-white/10 text-slate-200 text-xs font-bold py-2 pl-3 pr-8 rounded-full focus:outline-none focus:border-orange-500 cursor-pointer shadow-sm"
+        {/* Action Controls: Share & Month Dropdown */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            className="flex items-center gap-1.5 bg-[#181d26] hover:bg-[#222836] border border-white/10 text-orange-400 hover:text-orange-300 text-xs font-bold py-2 px-3 rounded-full transition-all shadow-sm active:scale-95 cursor-pointer"
+            title="Kongsi Laporan Perbelanjaan"
           >
-            <option value="all">Semua Masa</option>
-            {availableMonths.map((m) => {
-              const [y, mStr] = m.split('-');
-              const dateObj = new Date(parseInt(y), parseInt(mStr) - 1, 1);
-              const label = dateObj.toLocaleDateString('ms-MY', { month: 'short', year: 'numeric' });
-              return (
-                <option key={m} value={m}>
-                  {label}
-                </option>
-              );
-            })}
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Share2 className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">Kongsi</span>
+          </button>
+
+          <div className="relative">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="appearance-none bg-[#181d26] border border-white/10 text-slate-200 text-xs font-bold py-2 pl-3 pr-8 rounded-full focus:outline-none focus:border-orange-500 cursor-pointer shadow-sm"
+            >
+              <option value="all">Semua Masa</option>
+              {availableMonths.map((m) => {
+                const [y, mStr] = m.split('-');
+                const dateObj = new Date(parseInt(y), parseInt(mStr) - 1, 1);
+                const label = dateObj.toLocaleDateString('ms-MY', { month: 'short', year: 'numeric' });
+                return (
+                  <option key={m} value={m}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -452,12 +467,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 sm:right-6 z-20">
         <button
           onClick={onOpenAddModal}
-          className="w-14 h-14 bg-gradient-to-tr from-orange-600 to-orange-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(249,115,22,0.45)] hover:scale-105 active:scale-95 transition-all"
+          className="w-14 h-14 bg-gradient-to-tr from-orange-600 to-orange-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(249,115,22,0.45)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
           title="Tambah Kos Harian"
         >
           <Plus className="w-6 h-6 stroke-[2.5]" />
         </button>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        type="expenses"
+        vehicle={activeVehicle}
+        expenses={expenses}
+        currentSelectedMonth={selectedMonth}
+      />
     </div>
   );
 };

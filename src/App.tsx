@@ -13,6 +13,7 @@ import { DeleteModal } from './components/DeleteModal';
 import { AuthModal } from './components/AuthModal';
 import { LoginPage } from './components/LoginPage';
 import { Toast, ToastMessage } from './components/Toast';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 
 import { Vehicle, ExpenseRecord, ServiceRecord, MileageRecord, UserProfile, MainTabType } from './types';
 import { INITIAL_VEHICLES } from './data/defaultVehicles';
@@ -44,6 +45,7 @@ const createDefaultUserVehicle = (userDisplayName: string): Vehicle => ({
   fuelType: 'Petrol (RON 95)',
   roadtaxExpiry: '2026-12-31',
   insuranceCompany: 'Etiqa Takaful',
+  insuranceExpiry: '2026-12-31',
   image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=1000&auto=format&fit=crop',
   images: ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=1000&auto=format&fit=crop'],
   isActive: true,
@@ -726,6 +728,9 @@ export default function App() {
       {/* Main Responsive Mobile-First Container */}
       <div className="w-full max-w-lg md:max-w-2xl lg:max-w-3xl min-h-[100dvh] bg-[#0e1118] flex flex-col relative shadow-[0_0_50px_rgba(0,0,0,0.8)] sm:border-x border-white/5 overflow-x-hidden">
         
+        {/* PWA Install Banner for Android / Mobile */}
+        <PWAInstallBanner />
+
         {/* Top Header */}
         <Header
           vehicles={vehicles}
